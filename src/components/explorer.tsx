@@ -58,9 +58,12 @@ function categoryClass(category: StackItem['category']) {
 }
 
 function Overview({ data }: { data: RepositoryAnalysis }) {
-  const passed = data.qualitySignals.filter((item) => item.found).length;
+  const scoredSignals = data.qualitySignals.filter(
+    (item) => item.label !== 'TypeScript',
+  );
+  const passed = scoredSignals.filter((item) => item.found).length;
   const qualityPercent = Math.round(
-    (passed / Math.max(data.qualitySignals.length, 1)) * 100,
+    (passed / Math.max(scoredSignals.length, 1)) * 100,
   );
 
   return (
@@ -68,7 +71,7 @@ function Overview({ data }: { data: RepositoryAnalysis }) {
       <section className="metric-grid">
         <article><span>Arquivos</span><strong>{compactNumber(data.totals.files)}</strong><small>{data.totals.directories} diretórios</small></article>
         <article><span>Stack detectada</span><strong>{data.stack.length}</strong><small>tecnologias e ferramentas</small></article>
-        <article><span>Qualidade</span><strong>{qualityPercent}%</strong><small>{passed}/{data.qualitySignals.length} sinais encontrados</small></article>
+        <article><span>Qualidade</span><strong>{qualityPercent}%</strong><small>{passed}/{scoredSignals.length} critérios universais</small></article>
         <article><span>Manifestos</span><strong>{data.totals.manifests}</strong><small>package.json analisados</small></article>
       </section>
 
