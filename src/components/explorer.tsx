@@ -112,7 +112,14 @@ function Overview({ data }: { data: RepositoryAnalysis }) {
             {data.qualitySignals.map((signal) => (
               <div className={signal.found ? 'quality-card quality-ok' : 'quality-card'} key={signal.label}>
                 <span>{signal.found ? '✓' : '—'}</span>
-                <div><strong>{signal.label}</strong><small>{signal.detail}</small></div>
+                <div>
+                  <strong>{signal.label}</strong>
+                  <small>
+                    {signal.label === 'TypeScript'
+                      ? `${signal.detail} · informativo, não altera o score`
+                      : signal.detail}
+                  </small>
+                </div>
               </div>
             ))}
           </div>
