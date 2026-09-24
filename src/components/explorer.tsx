@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import type {
   ArchitectureLayer,
@@ -274,10 +275,14 @@ export function Explorer() {
 
   useEffect(() => {
     const repo = new URLSearchParams(window.location.search).get('repo');
-    if (repo) {
+    if (!repo) return;
+
+    const timer = window.setTimeout(() => {
       setInput(repo);
       void analyze(repo);
-    }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
     // Executar apenas na carga inicial para suportar links compartilháveis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -297,10 +302,10 @@ export function Explorer() {
     <main>
       <section className="hero">
         <div className="topbar shell">
-          <a className="brand" href="/" aria-label="RepoScope home">
+          <Link className="brand" href="/" aria-label="RepoScope home">
             <span className="brand-mark"><Icon name="layers" /></span>
             <span><strong>RepoScope</strong><small>GitHub Architecture Explorer</small></span>
-          </a>
+          </Link>
           <a className="github-link" href="https://github.com/leoo1992/github-explorer" target="_blank" rel="noreferrer">
             <Icon name="github" /> Código
           </a>
