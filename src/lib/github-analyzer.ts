@@ -290,8 +290,15 @@ function qualitySignals(
     },
     {
       label: 'Licença',
-      found: Boolean(repository.license),
-      detail: repository.license?.spdx_id ?? repository.license?.name ?? 'Licença não detectada',
+      found:
+        Boolean(repository.license) ||
+        has((path) => /(^|\/)(license|licence)(\.|$)/i.test(path)),
+      detail:
+        repository.license?.spdx_id ??
+        repository.license?.name ??
+        (has((path) => /(^|\/)(license|licence)(\.|$)/i.test(path))
+          ? 'Arquivo de licença presente'
+          : 'Licença não detectada'),
     },
   ];
 }
