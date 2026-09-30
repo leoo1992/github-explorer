@@ -213,9 +213,12 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
     return score;
   });
 
-  const scores = settled.flatMap((result) =>
-    result.status === 'fulfilled' ? [result.value] : [],
+  const scoredRepositories = settled.flatMap((result, index) =>
+    result.status === 'fulfilled'
+      ? [{ name: repositories[index]!.name, score: result.value }]
+      : [],
   );
+  const scores = scoredRepositories.map((item) => item.score);
   if (scores.length !== repositories.length) {
     throw new Error(
       `Análise do owner incompleta: ${scores.length}/${repositories.length} repositórios. A média parcial não será exibida.`,
@@ -234,5 +237,6 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
     complete: true,
     scope: 'public',
     analyzedAt: new Date().toISOString(),
+    repositories: scoredRepositories,
   };
 }
