@@ -1,8 +1,8 @@
+import { analyzeQualitySignals } from '@/lib/quality-analyzer';
 import type {
   ArchitectureLayer,
   DependencyItem,
   LanguageStat,
-  QualitySignal,
   RepositoryAnalysis,
   StackItem,
   TreeEntry,
@@ -240,69 +240,6 @@ function buildLayers(stack: StackItem[], tree: TreeEntry[]): ArchitectureLayer[]
   return layers;
 }
 
-function qualitySignals(
-  tree: TreeEntry[],
-  dependencies: DependencyItem[],
-  repository: GitHubRepository,
-): QualitySignal[] {
-  const paths = tree.map((entry) => entry.path.toLowerCase());
-  const deps = new Set(dependencies.map((item) => item.name));
-
-  const has = (matcher: (path: string) => boolean) => paths.some(matcher);
-
-  return [
-    {
-      label: 'Documentação',
-      found: has((path) => /^readme(\.|$)/.test(path)),
-      detail: 'README no repositório',
-    },
-    {
-      label: 'CI/CD',
-      found: has((path) => path.startsWith('.github/workflows/')),
-      detail: 'GitHub Actions configurado',
-    },
-    {
-      label: 'TypeScript',
-      found: has((path) => path.endsWith('tsconfig.json')) || deps.has('typescript'),
-      detail: 'Configuração ou dependência TypeScript',
-    },
-    {
-      label: 'Testes automatizados',
-      found:
-        has((path) => /(^|\/)(__tests__|tests?|spec)(\/|\.|$)/.test(path)) ||
-        ['jest', 'vitest', '@playwright/test', 'cypress'].some((dep) => deps.has(dep)),
-      detail: 'Arquivos ou framework de testes detectados',
-    },
-    {
-      label: 'Lint',
-      found: deps.has('eslint') || has((path) => path.includes('eslint.config')),
-      detail: 'ESLint detectado',
-    },
-    {
-      label: 'Container',
-      found: has((path) => path.endsWith('dockerfile') || path.includes('docker-compose')),
-      detail: 'Docker detectado',
-    },
-    {
-      label: 'Exemplo de ambiente',
-      found: has((path) => path.endsWith('.env.example')),
-      detail: '.env.example presente',
-    },
-    {
-      label: 'Licença',
-      found:
-        Boolean(repository.license) ||
-        has((path) => /(^|\/)(license|licence)(\.|$)/i.test(path)),
-      detail:
-        repository.license?.spdx_id ??
-        repository.license?.name ??
-        (has((path) => /(^|\/)(license|licence)(\.|$)/i.test(path))
-          ? 'Arquivo de licença presente'
-          : 'Licença não detectada'),
-    },
-  ];
-}
-
 export async function analyzeRepository(input: string): Promise<RepositoryAnalysis> {
   const { owner, repo } = parseRepoInput(input);
   const headers = buildHeaders();
@@ -361,7 +298,14 @@ export async function analyzeRepository(input: string): Promise<RepositoryAnalys
   const dependencies = collectDependencies(manifests);
   const stack = detectStack(dependencies, allTree);
   const layers = buildLayers(stack, allTree);
-  const signals = qualitySignals(allTree, dependencies, repository);
+  const { signals, remaining: qualityRemaining } = await analyzeQualitySignals({
+    owner,
+    repo,
+    defaultBranch: repository.default_branch,
+    tree: allTree,
+    dependencies,
+    repositoryLicense: repository.license,
+  });
 
   const totalLanguageBytes = Object.values(languagesResult.data).reduce(
     (total, value) => total + value,
@@ -383,6 +327,7 @@ export async function analyzeRepository(input: string): Promise<RepositoryAnalys
     repositoryResult.remaining,
     languagesResult.remaining,
     treeResult.remaining,
+    ...qualityRemaining,
   ].filter((value): value is number => value !== null);
 
   return {
