@@ -53,18 +53,41 @@ function normalizeInput(value: string) {
   return value.trim();
 }
 
-function categoryClass(category: StackItem['category']) {
-  return `stack-chip stack-${category.toLowerCase()}`;
-}
+const VERIFIED_STORAGE_KEY = 'reposcope:verified-quality-v1';
 
-function Overview({ data }: { data: RepositoryAnalysis }) {
+type VerifiedRepositoryScore = {
+  score: number;
+  analyzedAt: string;
+};
+
+type VerifiedRepositoryScores = Record<string, VerifiedRepositoryScore>;
+
+function repositoryQualityPercent(data: RepositoryAnalysis) {
   const scoredSignals = data.qualitySignals.filter(
     (item) => item.label !== 'TypeScript',
   );
   const passed = scoredSignals.filter((item) => item.found).length;
-  const qualityPercent = Math.round(
-    (passed / Math.max(scoredSignals.length, 1)) * 100,
+  return Math.round((passed / Math.max(scoredSignals.length, 1)) * 100);
+}
+
+function categoryClass(category: StackItem['category']) {
+  return `stack-chip stack-${category.toLowerCase()}`;
+}
+
+function Overview({
+  data,
+  verifiedAverage,
+  verifiedCount,
+}: {
+  data: RepositoryAnalysis;
+  verifiedAverage: number | null;
+  verifiedCount: number;
+}) {
+  const scoredSignals = data.qualitySignals.filter(
+    (item) => item.label !== 'TypeScript',
   );
+  const passed = scoredSignals.filter((item) => item.found).length;
+  const qualityPercent = repositoryQualityPercent(data);
 
   return (
     <div className="tab-content">
@@ -72,6 +95,7 @@ function Overview({ data }: { data: RepositoryAnalysis }) {
         <article><span>Arquivos</span><strong>{compactNumber(data.totals.files)}</strong><small>{data.totals.directories} diretórios</small></article>
         <article><span>Stack detectada</span><strong>{data.stack.length}</strong><small>tecnologias e ferramentas</small></article>
         <article><span>Qualidade</span><strong>{qualityPercent}%</strong><small>{passed}/{scoredSignals.length} critérios universais</small></article>
+        <article><span>Média verificados</span><strong>{verifiedAverage !== null ? `${verifiedAverage}%` : '—'}</strong><small>{verifiedCount} repositórios verificados</small></article>
         <article><span>Manifestos</span><strong>{data.totals.manifests}</strong><small>package.json analisados</small></article>
       </section>
 
@@ -254,6 +278,7 @@ export function Explorer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [verifiedScores, setVerifiedScores] = useState<VerifiedRepositoryScores>({});
 
   const analyze = async (value = input) => {
     const repo = normalizeInput(value);
@@ -270,10 +295,22 @@ export function Explorer() {
         throw new Error('error' in body ? body.error : 'Falha ao analisar repositório.');
       }
 
-      setAnalysis(body as RepositoryAnalysis);
+      const result = body as RepositoryAnalysis;
+      setAnalysis(result);
+      setVerifiedScores((previous) => {
+        const next = {
+          ...previous,
+          [result.repository.fullName]: {
+            score: repositoryQualityPercent(result),
+            analyzedAt: result.analyzedAt,
+          },
+        };
+        window.localStorage.setItem(VERIFIED_STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
       setTab('overview');
       const url = new URL(window.location.href);
-      url.searchParams.set('repo', (body as RepositoryAnalysis).repository.fullName);
+      url.searchParams.set('repo', result.repository.fullName);
       window.history.replaceState(null, '', url);
     } catch (caught) {
       setAnalysis(null);
@@ -282,6 +319,17 @@ export function Explorer() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VERIFIED_STORAGE_KEY);
+      if (stored) {
+        setVerifiedScores(JSON.parse(stored) as VerifiedRepositoryScores);
+      }
+    } catch {
+      window.localStorage.removeItem(VERIFIED_STORAGE_KEY);
+    }
+  }, []);
 
   useEffect(() => {
     const repo = new URLSearchParams(window.location.search).get('repo');
@@ -296,6 +344,15 @@ export function Explorer() {
     // Executar apenas na carga inicial para suportar links compartilháveis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const verifiedSummary = useMemo(() => {
+    const scores = Object.values(verifiedScores).map((item) => item.score);
+    if (!scores.length) return { average: null as number | null, count: 0 };
+    return {
+      average: Math.round(scores.reduce((total, score) => total + score, 0) / scores.length),
+      count: scores.length,
+    };
+  }, [verifiedScores]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -415,7 +472,13 @@ export function Explorer() {
               ))}
             </nav>
 
-            {tab === 'overview' ? <Overview data={analysis} /> : null}
+            {tab === 'overview' ? (
+              <Overview
+                data={analysis}
+                verifiedAverage={verifiedSummary.average}
+                verifiedCount={verifiedSummary.count}
+              />
+            ) : null}
             {tab === 'architecture' ? <Architecture layers={analysis.layers} stack={analysis.stack} /> : null}
             {tab === 'files' ? <Files entries={analysis.tree} truncated={analysis.treeTruncated} /> : null}
             {tab === 'dependencies' ? <Dependencies items={analysis.dependencies} /> : null}

@@ -140,6 +140,7 @@ function hasCoverage80(text: string) {
     /--cov-fail-under(?:=|\s+)(\d{1,3})/gi,
     /fail_under\s*=\s*(\d{1,3})/gi,
     /minimum_coverage\s*=\s*(\d{1,3})/gi,
+    /--test-coverage-lines(?:=|\s+)(\d{1,3})/gi,
     /(?:coverageThreshold|thresholds)[\s\S]{0,800}?lines\s*[:=]\s*(\d{1,3})/gi,
   ];
   return patterns.some((pattern) => {

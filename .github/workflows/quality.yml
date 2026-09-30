@@ -5,6 +5,9 @@ on:
     branches: [main, master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -13,7 +16,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run build
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Type checking
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Tests + coverage 80%
+        run: node --test --experimental-test-coverage --test-coverage-lines=80 tests/repository-quality.test.mjs
+      - name: Build
+        run: npm run build
