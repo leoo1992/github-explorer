@@ -328,6 +328,13 @@ export function Explorer() {
       setOwnerQualityModalOpen(false);
       setOwnerQualityLoading(true);
 
+      // Dispara também a agregação completa no servidor. Ela continua independente
+      // dos timers da aba e deixa o resultado disponível no cache da Vercel.
+      void fetch(
+        `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&quality_v=20260930bg`,
+        { cache: 'no-store' },
+      ).catch(() => undefined);
+
       void (async () => {
         let offset = 0;
         let total = 0;
@@ -413,6 +420,42 @@ export function Explorer() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!analysis) return;
+
+    const syncOwnerWhenVisible = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const response = await fetch(
+          `/api/owner-quality?owner=${encodeURIComponent(analysis.repository.owner)}&quality_v=20260930bg`,
+          { cache: 'no-store' },
+        );
+        if (!response.ok) return;
+        const summary = (await response.json()) as OwnerQualitySummary;
+        if (!summary.complete || summary.average === null) return;
+
+        ownerQualityRequestRef.current += 1;
+        setOwnerQuality(summary);
+        setOwnerQualityProgress({
+          analyzed: summary.analyzedRepositories,
+          total: summary.totalRepositories,
+        });
+        setOwnerQualityStatus('média final · sincronizada em background');
+        setOwnerQualityLoading(false);
+        setOwnerQualityModalOpen(true);
+      } catch {
+        // Se a execução completa ainda não terminou, a análise incremental continua.
+      }
+    };
+
+    document.addEventListener('visibilitychange', syncOwnerWhenVisible);
+    window.addEventListener('focus', syncOwnerWhenVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', syncOwnerWhenVisible);
+      window.removeEventListener('focus', syncOwnerWhenVisible);
+    };
+  }, [analysis]);
 
   useEffect(() => {
     const repo = new URLSearchParams(window.location.search).get('repo');
