@@ -207,9 +207,11 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
 
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
-  const settled = await mapWithConcurrency(repositories, 2, (repository) =>
-    scoreRepository(repository, headers),
-  );
+  const settled = await mapWithConcurrency(repositories, 2, async (repository) => {
+    const score = await scoreRepository(repository, headers);
+    await delay(3000);
+    return score;
+  });
 
   const scores = settled.flatMap((result) =>
     result.status === 'fulfilled' ? [result.value] : [],
