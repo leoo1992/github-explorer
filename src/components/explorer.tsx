@@ -345,6 +345,7 @@ export function Explorer() {
               const batch = (await ownerResponse.json()) as {
                 totalRepositories?: number;
                 scores?: number[];
+                repositories?: Array<{ name: string; score: number }>;
                 nextOffset?: number;
                 complete?: boolean;
                 error?: string;
