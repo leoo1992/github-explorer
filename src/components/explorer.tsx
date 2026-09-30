@@ -385,7 +385,7 @@ export function Explorer() {
               setOwnerQualityStatus(batch.complete ? 'média final' : 'média parcial');
 
               if (batch.complete) {
-                setOwnerQualityModalOpen(summary.repositories?.length === summary.totalRepositories);
+                setOwnerQualityModalOpen(true);
                 break;
               }
               setOwnerQualityStatus('aguardando API do GitHub · próxima análise em 3s');
