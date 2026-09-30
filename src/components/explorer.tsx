@@ -92,19 +92,19 @@ function Overview({
         <article>
           <span>Média geral do owner</span>
           <strong>
-            {ownerQualityLoading
-              ? 'Analisando…'
-              : ownerQuality?.complete && ownerQuality.average !== null
-                ? `${ownerQuality.average}%`
+            {ownerQuality?.average !== null && ownerQuality?.average !== undefined
+              ? `${ownerQuality.average}%`
+              : ownerQualityLoading
+                ? 'Analisando…'
                 : '—'}
           </strong>
           <small>
             {ownerQualityLoading
               ? ownerQualityProgress?.total
-                ? `${ownerQualityProgress.analyzed}/${ownerQualityProgress.total} repositórios públicos analisados`
+                ? `${ownerQualityProgress.analyzed}/${ownerQualityProgress.total} analisados · média parcial`
                 : `Preparando análise de todos os repositórios públicos de ${data.repository.owner}`
               : ownerQuality?.complete
-                ? `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} repositórios públicos analisados`
+                ? `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} analisados · média final`
                 : 'Não foi possível concluir a análise do owner'}
           </small>
         </article>
@@ -347,6 +347,18 @@ export function Explorer() {
             scores.push(...batch.scores);
             offset = batch.nextOffset ?? scores.length;
             setOwnerQualityProgress({ analyzed: scores.length, total });
+            const currentAverage = scores.length
+              ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+              : null;
+            setOwnerQuality({
+              owner: result.repository.owner,
+              average: currentAverage,
+              totalRepositories: total,
+              analyzedRepositories: scores.length,
+              complete: Boolean(batch.complete),
+              scope: 'public',
+              analyzedAt: new Date().toISOString(),
+            });
 
             if (batch.complete) {
               if (scores.length !== total) throw new Error('Análise incompleta do owner.');
