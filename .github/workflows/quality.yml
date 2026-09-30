@@ -24,5 +24,9 @@ jobs:
         run: npm run lint
       - name: Tests + coverage 80%
         run: node --test --experimental-test-coverage --test-coverage-lines=80 tests/repository-quality.test.mjs
+      - name: Owner quality integration
+        env:
+          GITHUB_TOKEN: ''
+        run: npx --yes tsx@4.20.6 scripts/verify-owner-quality.ts
       - name: Build
         run: npm run build
