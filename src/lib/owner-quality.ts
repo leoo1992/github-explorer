@@ -167,6 +167,15 @@ async function mapWithConcurrency<T, R>(
   );
 }
 
+async function scoreRepositoryForOwner(
+  repository: GitHubRepositoryListItem,
+  headers: HeadersInit,
+) {
+  return process.env.GITHUB_TOKEN?.trim()
+    ? scoreRepository(repository, headers)
+    : scoreRepositoryQuotaSafe(repository);
+}
+
 export async function analyzeOwnerQualityBatch(owner: string, offset: number, limit: number) {
   if (!/^[A-Za-z0-9_.-]+$/.test(owner)) throw new Error('Usuário do GitHub inválido.');
 
@@ -175,8 +184,9 @@ export async function analyzeOwnerQualityBatch(owner: string, offset: number, li
   const safeOffset = Math.max(0, Math.min(offset, repositories.length));
   const safeLimit = Math.max(1, Math.min(limit, 10));
   const batch = repositories.slice(safeOffset, safeOffset + safeLimit);
-  const worker = process.env.GITHUB_TOKEN?.trim() ? scoreRepository : scoreRepositoryQuotaSafe;
-  const settled = await mapWithConcurrency(batch, 2, (repository) => worker(repository, headers as never));
+  const settled = await mapWithConcurrency(batch, 2, (repository) =>
+    scoreRepositoryForOwner(repository, headers),
+  );
   const scored = settled.flatMap((result, index) =>
     result.status === 'fulfilled'
       ? [{ name: batch[index]!.name, score: result.value }]
@@ -207,9 +217,8 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
 
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
-  const worker = process.env.GITHUB_TOKEN?.trim() ? scoreRepository : scoreRepositoryQuotaSafe;
   const settled = await mapWithConcurrency(repositories, 4, async (repository) => {
-    const score = await worker(repository, headers as never);
+    const score = await scoreRepositoryForOwner(repository, headers);
     if (process.env.GITHUB_TOKEN?.trim()) await delay(500);
     return score;
   });
