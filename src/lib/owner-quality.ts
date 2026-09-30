@@ -133,7 +133,7 @@ async function mapWithConcurrency<T, R>(
       const index = cursor;
       cursor += 1;
       try {
-        results[index] = { status: 'fulfilled', value: await worker(items[index]) };
+        results[index] = { status: 'fulfilled', value: await worker(items[index]!) };
       } catch (reason) {
         results[index] = { status: 'rejected', reason };
       }
