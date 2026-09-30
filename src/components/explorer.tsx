@@ -88,11 +88,11 @@ function Overview({
         <article><span>Stack detectada</span><strong>{data.stack.length}</strong><small>tecnologias e ferramentas</small></article>
         <article><span>Qualidade</span><strong>{qualityPercent}%</strong><small>{passed}/{scoredSignals.length} critérios universais</small></article>
         <article>
-          <span>Média verificados</span>
+          <span>Média geral do owner</span>
           <strong>
             {ownerQualityLoading
               ? '…'
-              : ownerQuality?.complete && ownerQuality.average !== null
+              : ownerQuality?.average !== null && ownerQuality?.average !== undefined
                 ? `${ownerQuality.average}%`
                 : '—'}
           </strong>
@@ -100,8 +100,10 @@ function Overview({
             {ownerQualityLoading
               ? `Verificando todos os repositórios de ${data.repository.owner}`
               : ownerQuality
-                ? `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} repositórios públicos do usuário`
-                : 'Média do usuário indisponível'}
+                ? ownerQuality.complete
+                  ? `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} repositórios públicos do owner`
+                  : `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} analisados · média parcial`
+                : 'Média do owner indisponível'}
           </small>
         </article>
         <article><span>Manifestos</span><strong>{data.totals.manifests}</strong><small>package.json analisados</small></article>
