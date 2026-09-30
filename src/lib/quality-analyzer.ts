@@ -239,7 +239,13 @@ export async function analyzeQualitySignals(args: {
   const hasPython = lowerPaths.some((path) => /(^|\/)(pyproject\.toml|requirements[^/]*\.txt|setup\.py)$/.test(path));
   const sensitive = paths.filter(isSensitivePath);
   const lockfile = paths.find((path) => LOCKFILES.has(basename(path)));
-  const dockerfiles = files.filter((file) => /(^|\/)dockerfile$/i.test(file.path));
+  const detectedDockerfiles = files.filter((file) => /(^|\/)dockerfile$/i.test(file.path));
+  const qualityDockerfiles = detectedDockerfiles.filter(
+    (file) => file.path.toLowerCase() === 'quality/dockerfile',
+  );
+  const dockerfiles = qualityDockerfiles.length
+    ? qualityDockerfiles
+    : detectedDockerfiles;
   const testsExist = lowerPaths.some((path) => /(^|\/)(__tests__|tests?|specs?)(\/|\.|$)/.test(path)) ||
     ['jest', 'vitest', '@playwright/test', 'cypress'].some((dep) => deps.has(dep));
   const lintConfigured = ['eslint', 'stylelint', 'biome', '@biomejs/biome'].some((dep) => deps.has(dep)) ||
@@ -255,7 +261,7 @@ export async function analyzeQualitySignals(args: {
     { label: '.env.example', found: lowerPaths.some((path) => /(^|\/)\.env\.example$/.test(path)), detail: 'Exemplo de variáveis de ambiente presente' },
     { label: 'Arquitetura', found: lowerPaths.some((path) => /(^|\/)(architecture|arquitetura)(?:\.[^/]+)?\.md$/.test(path) || /(^|\/)docs\/adr\//.test(path)), detail: 'Documentação de arquitetura ou ADR detectada' },
     { label: 'LICENSE', found: Boolean(repositoryLicense) || lowerPaths.some((path) => /(^|\/)(license|licence)(\.|$)/.test(path)), detail: repositoryLicense?.spdx_id ?? repositoryLicense?.name ?? 'Arquivo LICENSE detectado' },
-    { label: 'Docker seguro', found: dockerIsSafe(dockerfiles), detail: 'Imagem versionada, usuário não-root e sem segredo hardcoded em ENV/ARG' },
+    { label: 'Docker seguro', found: dockerIsSafe(dockerfiles), detail: qualityDockerfiles.length ? 'Container de qualidade versionado, não-root e sem segredos hardcoded' : 'Imagem versionada, usuário não-root e sem segredo hardcoded em ENV/ARG' },
     { label: 'Dockerfile', found: lowerPaths.some((path) => /(^|\/)dockerfile$/.test(path)), detail: 'Dockerfile detectado' },
     { label: 'Pipeline completo verde', found: ci.evidence.pipelinePassed, detail: ci.evidence.detail },
     { label: 'GitHub Actions', found: workflows.length > 0, detail: 'Workflow do GitHub Actions detectado' },
