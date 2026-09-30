@@ -385,7 +385,7 @@ export function Explorer() {
               setOwnerQualityStatus(batch.complete ? 'média final' : 'média parcial');
 
               if (batch.complete) {
-                setOwnerQualityModalOpen(true);
+                setOwnerQualityModalOpen(summary.repositories?.length === summary.totalRepositories);
                 break;
               }
               setOwnerQualityStatus('aguardando API do GitHub · próxima análise em 3s');
@@ -432,7 +432,7 @@ export function Explorer() {
           { cache: 'no-store' },
         );
         if (!response.ok) return;
-        const summary = (await response.json()) as OwnerQualitySummary;
+        const summary = (await response.json()) as OwnerQualitySummary & { repositories?: Array<{ name: string; score: number }> };
         if (!summary.complete || summary.average === null) return;
 
         ownerQualityRequestRef.current += 1;
@@ -442,6 +442,9 @@ export function Explorer() {
           total: summary.totalRepositories,
         });
         setOwnerQualityStatus('média final · sincronizada em background');
+        if (summary.repositories?.length === summary.totalRepositories) {
+          setOwnerRepositoryScores(summary.repositories);
+        }
         setOwnerQualityLoading(false);
         setOwnerQualityModalOpen(true);
       } catch {
