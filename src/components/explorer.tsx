@@ -346,7 +346,7 @@ export function Explorer() {
             setOwnerQualityStatus(consecutiveFailures ? `tentativa ${consecutiveFailures + 1} do lote` : 'média parcial');
             try {
               const ownerResponse = await fetch(
-                `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&offset=${offset}&limit=1&quality_v=20260930f`,
+                `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&offset=${offset}&limit=5&quality_v=20260930g`,
                 { cache: 'no-store' },
               );
               const batch = (await ownerResponse.json()) as {
