@@ -61,6 +61,17 @@ async function githubFetch<T>(url: string, headers: HeadersInit) {
   };
 }
 
+async function githubFetchFresh<T>(url: string, headers: HeadersInit) {
+  const response = await fetch(url, { headers, cache: 'no-store' });
+  if (!response.ok) throw new Error(`GitHub respondeu com HTTP ${response.status}.`);
+  const remainingHeader = response.headers.get('x-ratelimit-remaining');
+  const remaining = remainingHeader ? Number.parseInt(remainingHeader, 10) : null;
+  return {
+    data: (await response.json()) as T,
+    remaining: Number.isFinite(remaining) ? remaining : null,
+  };
+}
+
 function decodeContent(content: GitHubContent) {
   if (!content.content || content.encoding !== 'base64') return null;
   return Buffer.from(content.content.replace(/\n/g, ''), 'base64').toString('utf8');
@@ -175,12 +186,12 @@ async function getCiEvidence(base: string, branch: string, headers: HeadersInit,
   ].filter(Boolean).length >= 2).map(({ path }) => path));
 
   try {
-    const runs = await githubFetch<GitHubWorkflowRuns>(
+    const runs = await githubFetchFresh<GitHubWorkflowRuns>(
       `${base}/actions/runs?branch=${encodeURIComponent(branch)}&status=completed&per_page=20`, headers,
     );
     const run = runs.data.workflow_runs.find((item) => qualityPaths.has(item.path));
     if (!run) return { evidence: empty, remaining: runs.remaining === null ? [] : [runs.remaining] };
-    const jobs = await githubFetch<GitHubWorkflowJobs>(`${base}/actions/runs/${run.id}/jobs?per_page=100`, headers);
+    const jobs = await githubFetchFresh<GitHubWorkflowJobs>(`${base}/actions/runs/${run.id}/jobs?per_page=100`, headers);
     return {
       evidence: {
         pipelinePassed: run.conclusion === 'success',

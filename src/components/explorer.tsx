@@ -314,7 +314,8 @@ export function Explorer() {
       setOwnerQuality(null);
       setOwnerQualityLoading(true);
       void fetch(
-        `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}`,
+        `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&quality_v=20260930c`,
+        { cache: 'no-store' },
       )
         .then(async (ownerResponse) => {
           const ownerBody = (await ownerResponse.json()) as

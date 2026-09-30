@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const summary = await analyzeOwnerQuality(owner);
     return Response.json(summary, {
       headers: {
-        'cache-control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        'cache-control': 'public, s-maxage=300, stale-while-revalidate=3600',
       },
     });
   } catch (error) {
