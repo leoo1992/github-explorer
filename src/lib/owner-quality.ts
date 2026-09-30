@@ -1,3 +1,4 @@
+import { scoreRepositoryQuotaSafe } from './owner-quality-fast';
 import { analyzeQualitySignals } from '@/lib/quality-analyzer';
 import type { OwnerQualitySummary, TreeEntry } from '@/types/repository';
 
@@ -174,9 +175,8 @@ export async function analyzeOwnerQualityBatch(owner: string, offset: number, li
   const safeOffset = Math.max(0, Math.min(offset, repositories.length));
   const safeLimit = Math.max(1, Math.min(limit, 10));
   const batch = repositories.slice(safeOffset, safeOffset + safeLimit);
-  const settled = await mapWithConcurrency(batch, 2, (repository) =>
-    scoreRepository(repository, headers),
-  );
+  const worker = process.env.GITHUB_TOKEN?.trim() ? scoreRepository : scoreRepositoryQuotaSafe;
+  const settled = await mapWithConcurrency(batch, 2, (repository) => worker(repository, headers as never));
   const scored = settled.flatMap((result, index) =>
     result.status === 'fulfilled'
       ? [{ name: batch[index]!.name, score: result.value }]
@@ -207,9 +207,10 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
 
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
-  const settled = await mapWithConcurrency(repositories, 2, async (repository) => {
-    const score = await scoreRepository(repository, headers);
-    await delay(3000);
+  const worker = process.env.GITHUB_TOKEN?.trim() ? scoreRepository : scoreRepositoryQuotaSafe;
+  const settled = await mapWithConcurrency(repositories, 4, async (repository) => {
+    const score = await worker(repository, headers as never);
+    if (process.env.GITHUB_TOKEN?.trim()) await delay(500);
     return score;
   });
 
