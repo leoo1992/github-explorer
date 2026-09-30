@@ -229,3 +229,15 @@ h1 { margin-bottom: 16px; font-size: clamp(36px, 5vw, 66px); line-height: .98; l
 .owner-quality-value { display: flex; align-items: center; gap: 10px; }
 .owner-spinner { width: 22px; height: 22px; flex: 0 0 22px; border: 3px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: owner-spin .8s linear infinite; }
 @keyframes owner-spin { to { transform: rotate(360deg); } }
+
+.quality-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(2,6,16,.78); backdrop-filter: blur(8px); }
+.quality-modal { width: min(680px,100%); max-height: min(82vh,760px); overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 22px; background: var(--surface); box-shadow: 0 24px 80px rgba(0,0,0,.45); }
+.quality-modal-head { display: flex; justify-content: space-between; gap: 18px; padding: 22px; border-bottom: 1px solid var(--border); }
+.quality-modal-head small { color: var(--cyan); letter-spacing: .12em; }
+.quality-modal-head h2 { margin: 5px 0; }
+.quality-modal-head p { margin: 0; color: var(--muted); }
+.quality-modal-head button { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-2); color: var(--text); font-size: 24px; cursor: pointer; }
+.quality-modal-list { overflow: auto; padding: 8px 18px 18px; }
+.quality-modal-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 4px; border-bottom: 1px solid var(--border); }
+.quality-modal-row span { overflow-wrap: anywhere; }
+.quality-modal-row strong { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
