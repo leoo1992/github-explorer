@@ -297,6 +297,8 @@ export function Explorer() {
   const [ownerQualityLoading, setOwnerQualityLoading] = useState(false);
   const [ownerQualityProgress, setOwnerQualityProgress] = useState<{ analyzed: number; total: number } | null>(null);
   const [ownerQualityStatus, setOwnerQualityStatus] = useState('');
+  const [ownerRepositoryScores, setOwnerRepositoryScores] = useState<Array<{ name: string; score: number }>>([]);
+  const [ownerQualityModalOpen, setOwnerQualityModalOpen] = useState(false);
   const ownerQualityRequestRef = useRef(0);
 
   const analyze = async (value = input) => {
@@ -322,6 +324,8 @@ export function Explorer() {
       ownerQualityRequestRef.current = requestId;
       setOwnerQuality(null);
       setOwnerQualityProgress(null);
+      setOwnerRepositoryScores([]);
+      setOwnerQualityModalOpen(false);
       setOwnerQualityLoading(true);
 
       void (async () => {
@@ -352,6 +356,9 @@ export function Explorer() {
               consecutiveFailures = 0;
               total = batch.totalRepositories;
               scores.push(...batch.scores);
+              if (batch.repositories?.length) {
+                setOwnerRepositoryScores((current) => [...current, ...batch.repositories!]);
+              }
               offset = batch.nextOffset ?? scores.length;
               setOwnerQualityProgress({ analyzed: scores.length, total });
 
@@ -369,8 +376,12 @@ export function Explorer() {
               });
               setOwnerQualityStatus(batch.complete ? 'média final' : 'média parcial');
 
-              if (batch.complete) break;
-              await new Promise((resolve) => window.setTimeout(resolve, 500));
+              if (batch.complete) {
+                setOwnerQualityModalOpen(true);
+                break;
+              }
+              setOwnerQualityStatus('aguardando API do GitHub · próxima análise em 3s');
+              await new Promise((resolve) => window.setTimeout(resolve, 3000));
             } catch {
               consecutiveFailures += 1;
               setOwnerQualityStatus(`reprocessando lote · tentativa ${consecutiveFailures + 1}`);
@@ -380,7 +391,7 @@ export function Explorer() {
                 consecutiveFailures = 0;
               } else {
                 await new Promise((resolve) =>
-                  window.setTimeout(resolve, Math.min(1000 * 2 ** consecutiveFailures, 10000)),
+                  window.setTimeout(resolve, Math.min(3000 * 2 ** consecutiveFailures, 30000)),
                 );
               }
             }
