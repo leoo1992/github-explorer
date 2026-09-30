@@ -93,7 +93,8 @@ function Overview({
         <article><span>Qualidade</span><strong>{qualityPercent}%</strong><small>{passed}/{scoredSignals.length} critérios universais</small></article>
         <article>
           <span>Média geral do owner</span>
-          <strong>
+          <strong className="owner-quality-value">
+            {ownerQualityLoading ? <span className="owner-spinner" aria-hidden="true" /> : null}
             {ownerQuality?.average !== null && ownerQuality?.average !== undefined
               ? `${ownerQuality.average}%`
               : ownerQualityLoading
