@@ -612,6 +612,50 @@ export function Explorer() {
           </>
         ) : null}
       </section>
+
+      {ownerQualityModalOpen && ownerQuality?.complete ? (
+        <div
+          className="quality-modal-backdrop"
+          role="presentation"
+          onClick={() => setOwnerQualityModalOpen(false)}
+        >
+          <section
+            className="quality-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="owner-quality-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="quality-modal-head">
+              <div>
+                <small>ANÁLISE CONCLUÍDA</small>
+                <h2 id="owner-quality-title">Qualidade dos repositórios</h2>
+                <p>
+                  {ownerRepositoryScores.length}/{ownerQuality.totalRepositories} públicos · média final {ownerQuality.average}%
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOwnerQualityModalOpen(false)}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="quality-modal-list">
+              {[...ownerRepositoryScores]
+                .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+                .map((item) => (
+                  <div className="quality-modal-row" key={item.name}>
+                    <span>{item.name}</span>
+                    <strong>{item.score}%</strong>
+                  </div>
+                ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
