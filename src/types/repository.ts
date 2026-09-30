@@ -74,3 +74,14 @@ export interface RepositoryAnalysis {
   rateLimitRemaining: number | null;
   analyzedAt: string;
 }
+
+
+export interface OwnerQualitySummary {
+  owner: string;
+  average: number | null;
+  totalRepositories: number;
+  analyzedRepositories: number;
+  complete: boolean;
+  scope: 'public';
+  analyzedAt: string;
+}

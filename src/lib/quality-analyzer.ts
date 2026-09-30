@@ -219,6 +219,19 @@ export async function analyzeQualitySignals(args: {
   const files = reads.flatMap(({ file }) => file ? [file] : []);
   const textByPath = new Map(files.map((file) => [file.path.toLowerCase(), file.content]));
   const combinedText = files.map((file) => file.content).join('\n');
+
+  for (const file of files.filter((item) => /(^|\/)package\.json$/i.test(item.path))) {
+    try {
+      const manifest = JSON.parse(file.content) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      for (const name of Object.keys(manifest.dependencies ?? {})) deps.add(name.toLowerCase());
+      for (const name of Object.keys(manifest.devDependencies ?? {})) deps.add(name.toLowerCase());
+    } catch {
+      // Manifesto inválido: os demais sinais continuam sendo avaliados.
+    }
+  }
   const workflows = files.filter((file) => /^\.github\/workflows\/.*\.ya?ml$/i.test(file.path));
   const ci = await getCiEvidence(base, defaultBranch, headers, workflows);
 
