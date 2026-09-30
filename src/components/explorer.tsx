@@ -278,7 +278,15 @@ export function Explorer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [verifiedScores, setVerifiedScores] = useState<VerifiedRepositoryScores>({});
+  const [verifiedScores, setVerifiedScores] = useState<VerifiedRepositoryScores>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = window.localStorage.getItem(VERIFIED_STORAGE_KEY);
+      return stored ? (JSON.parse(stored) as VerifiedRepositoryScores) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const analyze = async (value = input) => {
     const repo = normalizeInput(value);
@@ -319,17 +327,6 @@ export function Explorer() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(VERIFIED_STORAGE_KEY);
-      if (stored) {
-        setVerifiedScores(JSON.parse(stored) as VerifiedRepositoryScores);
-      }
-    } catch {
-      window.localStorage.removeItem(VERIFIED_STORAGE_KEY);
-    }
-  }, []);
 
   useEffect(() => {
     const repo = new URLSearchParams(window.location.search).get('repo');
