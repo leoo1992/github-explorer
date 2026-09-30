@@ -71,11 +71,13 @@ function Overview({
   ownerQuality,
   ownerQualityLoading,
   ownerQualityProgress,
+  ownerQualityStatus,
 }: {
   data: RepositoryAnalysis;
   ownerQuality: OwnerQualitySummary | null;
   ownerQualityLoading: boolean;
   ownerQualityProgress: { analyzed: number; total: number } | null;
+  ownerQualityStatus: string;
 }) {
   const scoredSignals = data.qualitySignals.filter(
     (item) => item.label !== 'TypeScript',
@@ -101,7 +103,7 @@ function Overview({
           <small>
             {ownerQualityLoading
               ? ownerQualityProgress?.total
-                ? `${ownerQualityProgress.analyzed}/${ownerQualityProgress.total} analisados · média parcial`
+                ? `${ownerQualityProgress.analyzed}/${ownerQualityProgress.total} analisados · ${ownerQualityStatus || 'média parcial'}`
                 : `Preparando análise de todos os repositórios públicos de ${data.repository.owner}`
               : ownerQuality?.complete
                 ? `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} analisados · média final`
@@ -293,6 +295,7 @@ export function Explorer() {
   const [ownerQuality, setOwnerQuality] = useState<OwnerQualitySummary | null>(null);
   const [ownerQualityLoading, setOwnerQualityLoading] = useState(false);
   const [ownerQualityProgress, setOwnerQualityProgress] = useState<{ analyzed: number; total: number } | null>(null);
+  const [ownerQualityStatus, setOwnerQualityStatus] = useState('');
   const ownerQualityRequestRef = useRef(0);
 
   const analyze = async (value = input) => {
@@ -321,65 +324,65 @@ export function Explorer() {
       setOwnerQualityLoading(true);
 
       void (async () => {
+        let offset = 0;
+        let total = 0;
+        const scores: number[] = [];
+        let consecutiveFailures = 0;
+
         try {
-          let offset = 0;
-          let total = 0;
-          const scores: number[] = [];
-
           while (requestId === ownerQualityRequestRef.current) {
-            const ownerResponse = await fetch(
-              `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&offset=${offset}&limit=5&quality_v=20260930d`,
-              { cache: 'no-store' },
-            );
-            const batch = (await ownerResponse.json()) as {
-              totalRepositories?: number;
-              processed?: number;
-              scores?: number[];
-              nextOffset?: number;
-              complete?: boolean;
-              error?: string;
-            };
-            if (!ownerResponse.ok || !batch.scores || batch.totalRepositories === undefined) {
-              throw new Error(batch.error ?? 'Falha ao analisar o owner.');
-            }
+            setOwnerQualityStatus(consecutiveFailures ? `tentativa ${consecutiveFailures + 1} do lote` : 'média parcial');
+            try {
+              const ownerResponse = await fetch(
+                `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&offset=${offset}&limit=5&quality_v=20260930e`,
+                { cache: 'no-store' },
+              );
+              const batch = (await ownerResponse.json()) as {
+                totalRepositories?: number;
+                scores?: number[];
+                nextOffset?: number;
+                complete?: boolean;
+                error?: string;
+              };
+              if (!ownerResponse.ok || !batch.scores || batch.totalRepositories === undefined) {
+                throw new Error(batch.error ?? 'Falha ao analisar o owner.');
+              }
 
-            total = batch.totalRepositories;
-            scores.push(...batch.scores);
-            offset = batch.nextOffset ?? scores.length;
-            setOwnerQualityProgress({ analyzed: scores.length, total });
-            const currentAverage = scores.length
-              ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
-              : null;
-            setOwnerQuality({
-              owner: result.repository.owner,
-              average: currentAverage,
-              totalRepositories: total,
-              analyzedRepositories: scores.length,
-              complete: Boolean(batch.complete),
-              scope: 'public',
-              analyzedAt: new Date().toISOString(),
-            });
+              consecutiveFailures = 0;
+              total = batch.totalRepositories;
+              scores.push(...batch.scores);
+              offset = batch.nextOffset ?? scores.length;
+              setOwnerQualityProgress({ analyzed: scores.length, total });
 
-            if (batch.complete) {
-              if (scores.length !== total) throw new Error('Análise incompleta do owner.');
-              const average = scores.length
+              const currentAverage = scores.length
                 ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
                 : null;
               setOwnerQuality({
                 owner: result.repository.owner,
-                average,
+                average: currentAverage,
                 totalRepositories: total,
                 analyzedRepositories: scores.length,
-                complete: true,
+                complete: Boolean(batch.complete),
                 scope: 'public',
                 analyzedAt: new Date().toISOString(),
               });
-              break;
+              setOwnerQualityStatus(batch.complete ? 'média final' : 'média parcial');
+
+              if (batch.complete) break;
+              await new Promise((resolve) => window.setTimeout(resolve, 350));
+            } catch {
+              consecutiveFailures += 1;
+              setOwnerQualityStatus(`reprocessando lote · tentativa ${consecutiveFailures + 1}`);
+              if (consecutiveFailures >= 8) {
+                setOwnerQualityStatus('aguardando API do GitHub · nova tentativa em 15s');
+                await new Promise((resolve) => window.setTimeout(resolve, 15000));
+                consecutiveFailures = 0;
+              } else {
+                await new Promise((resolve) =>
+                  window.setTimeout(resolve, Math.min(1000 * 2 ** consecutiveFailures, 10000)),
+                );
+              }
             }
-          }
-        } catch {
-          if (requestId === ownerQualityRequestRef.current) {
-            setOwnerQuality(null);
           }
         } finally {
           if (requestId === ownerQualityRequestRef.current) {
@@ -536,6 +539,7 @@ export function Explorer() {
                 ownerQuality={ownerQuality}
                 ownerQualityLoading={ownerQualityLoading}
                 ownerQualityProgress={ownerQualityProgress}
+                ownerQualityStatus={ownerQualityStatus}
               />
             ) : null}
             {tab === 'architecture' ? <Architecture layers={analysis.layers} stack={analysis.stack} /> : null}
