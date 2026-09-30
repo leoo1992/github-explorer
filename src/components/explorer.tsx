@@ -334,7 +334,7 @@ export function Explorer() {
             setOwnerQualityStatus(consecutiveFailures ? `tentativa ${consecutiveFailures + 1} do lote` : 'média parcial');
             try {
               const ownerResponse = await fetch(
-                `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&offset=${offset}&limit=5&quality_v=20260930e`,
+                `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&offset=${offset}&limit=1&quality_v=20260930f`,
                 { cache: 'no-store' },
               );
               const batch = (await ownerResponse.json()) as {
@@ -369,7 +369,7 @@ export function Explorer() {
               setOwnerQualityStatus(batch.complete ? 'média final' : 'média parcial');
 
               if (batch.complete) break;
-              await new Promise((resolve) => window.setTimeout(resolve, 350));
+              await new Promise((resolve) => window.setTimeout(resolve, 500));
             } catch {
               consecutiveFailures += 1;
               setOwnerQualityStatus(`reprocessando lote · tentativa ${consecutiveFailures + 1}`);
