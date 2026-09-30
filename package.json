@@ -8,8 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "tsc --noEmit",
-    "owner-quality": "tsx scripts/generate-owner-quality.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "16.3.6",
@@ -24,8 +23,7 @@
     "eslint": "^9.35.0",
     "eslint-config-next": "16.3.6",
     "tailwindcss": "4.3.3",
-    "typescript": "^5.9.2",
-    "tsx": "^4.20.6"
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": ">=22.0.0"
