@@ -156,7 +156,7 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
 
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
-  const settled = await mapWithConcurrency(repositories, 4, (repository) =>
+  const settled = await mapWithConcurrency(repositories, 10, (repository) =>
     scoreRepository(repository, headers),
   );
 
