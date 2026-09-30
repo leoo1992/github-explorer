@@ -225,3 +225,7 @@ h1 { margin-bottom: 16px; font-size: clamp(36px, 5vw, 66px); line-height: .98; l
   .tabs button { flex: 0 0 auto; }
   .stack-chip { flex: 1 1 calc(50% - 7px); min-width: 0; }
 }
+
+.owner-quality-value { display: flex; align-items: center; gap: 10px; }
+.owner-spinner { width: 22px; height: 22px; flex: 0 0 22px; border: 3px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: owner-spin .8s linear infinite; }
+@keyframes owner-spin { to { transform: rotate(360deg); } }
