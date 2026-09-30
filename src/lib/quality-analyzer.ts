@@ -79,6 +79,17 @@ function decodeContent(content: GitHubContent) {
 
 async function fetchTextFile(base: string, path: string, ref: string, headers: HeadersInit) {
   try {
+    const match = base.match(/^https:\/\/api\.github\.com\/repos\/([^/]+)\/([^/]+)$/);
+    if (match) {
+      const [, owner, repo] = match;
+      const rawUrl =
+        `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/` +
+        `${encodeURIComponent(ref)}/${path.split('/').map(encodeURIComponent).join('/')}`;
+      const response = await fetch(rawUrl, { next: { revalidate: 3600 } });
+      if (!response.ok) return { file: null, remaining: null };
+      return { file: { path, content: await response.text() }, remaining: null };
+    }
+
     const result = await githubFetch<GitHubContent>(
       `${base}/contents/${encodeURIComponent(path).replace(/%2F/g, '/')}?ref=${encodeURIComponent(ref)}`,
       headers,
