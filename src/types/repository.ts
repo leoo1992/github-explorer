@@ -84,4 +84,5 @@ export interface OwnerQualitySummary {
   complete: boolean;
   scope: 'public';
   analyzedAt: string;
+  repositories?: Array<{ name: string; score: number }>;
 }
