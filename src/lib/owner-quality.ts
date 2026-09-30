@@ -166,6 +166,36 @@ async function mapWithConcurrency<T, R>(
   );
 }
 
+export async function analyzeOwnerQualityBatch(owner: string, offset: number, limit: number) {
+  if (!/^[A-Za-z0-9_.-]+$/.test(owner)) throw new Error('Usuário do GitHub inválido.');
+
+  const headers = buildHeaders();
+  const repositories = await listOwnerRepositories(owner, headers);
+  const safeOffset = Math.max(0, Math.min(offset, repositories.length));
+  const safeLimit = Math.max(1, Math.min(limit, 10));
+  const batch = repositories.slice(safeOffset, safeOffset + safeLimit);
+  const settled = await mapWithConcurrency(batch, 2, (repository) =>
+    scoreRepository(repository, headers),
+  );
+  const scores = settled.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : [],
+  );
+
+  if (scores.length !== batch.length) {
+    throw new Error(`Falha no lote ${safeOffset + 1}-${safeOffset + batch.length}. Nenhuma média parcial será usada.`);
+  }
+
+  return {
+    owner,
+    totalRepositories: repositories.length,
+    offset: safeOffset,
+    processed: scores.length,
+    scores,
+    nextOffset: safeOffset + scores.length,
+    complete: safeOffset + scores.length >= repositories.length,
+  };
+}
+
 export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySummary> {
   if (!/^[A-Za-z0-9_.-]+$/.test(owner)) {
     throw new Error('Usuário do GitHub inválido.');
