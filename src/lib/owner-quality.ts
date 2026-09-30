@@ -103,21 +103,38 @@ function scoreSignals(signals: Array<{ found: boolean }>) {
   return Math.round((passed / signals.length) * 100);
 }
 
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function scoreRepository(
   repository: GitHubRepositoryListItem,
   headers: HeadersInit,
 ) {
-  const tree = await repositoryTree(repository, headers);
-  const { signals } = await analyzeQualitySignals({
-    owner: repository.owner.login,
-    repo: repository.name,
-    defaultBranch: repository.default_branch,
-    tree,
-    dependencies: [],
-    repositoryLicense: repository.license,
-  });
+  let lastError: unknown;
 
-  return scoreSignals(signals);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const tree = await repositoryTree(repository, headers);
+      const { signals } = await analyzeQualitySignals({
+        owner: repository.owner.login,
+        repo: repository.name,
+        defaultBranch: repository.default_branch,
+        tree,
+        dependencies: [],
+        repositoryLicense: repository.license,
+      });
+
+      return scoreSignals(signals);
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await delay(750 * 2 ** attempt);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Falha ao analisar ${repository.full_name}.`);
 }
 
 async function mapWithConcurrency<T, R>(
@@ -156,13 +173,19 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
 
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
-  const settled = await mapWithConcurrency(repositories, 10, (repository) =>
+  const settled = await mapWithConcurrency(repositories, 2, (repository) =>
     scoreRepository(repository, headers),
   );
 
   const scores = settled.flatMap((result) =>
     result.status === 'fulfilled' ? [result.value] : [],
   );
+  if (scores.length !== repositories.length) {
+    throw new Error(
+      `Análise do owner incompleta: ${scores.length}/${repositories.length} repositórios. A média parcial não será exibida.`,
+    );
+  }
+
   const average = scores.length
     ? Math.round(scores.reduce((total, score) => total + score, 0) / scores.length)
     : null;
@@ -172,7 +195,7 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
     average,
     totalRepositories: repositories.length,
     analyzedRepositories: scores.length,
-    complete: scores.length === repositories.length,
+    complete: true,
     scope: 'public',
     analyzedAt: new Date().toISOString(),
   };
