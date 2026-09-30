@@ -91,19 +91,17 @@ function Overview({
           <span>Média geral do owner</span>
           <strong>
             {ownerQualityLoading
-              ? '…'
-              : ownerQuality?.average !== null && ownerQuality?.average !== undefined
+              ? 'Analisando…'
+              : ownerQuality?.complete && ownerQuality.average !== null
                 ? `${ownerQuality.average}%`
                 : '—'}
           </strong>
           <small>
             {ownerQualityLoading
-              ? `Verificando todos os repositórios de ${data.repository.owner}`
-              : ownerQuality
-                ? ownerQuality.complete
-                  ? `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} repositórios públicos do owner`
-                  : `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} analisados · média parcial`
-                : 'Média do owner indisponível'}
+              ? `Analisando todos os repositórios públicos de ${data.repository.owner}`
+              : ownerQuality?.complete
+                ? `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} repositórios públicos analisados`
+                : 'Não foi possível concluir a análise do owner'}
           </small>
         </article>
         <article><span>Manifestos</span><strong>{data.totals.manifests}</strong><small>package.json analisados</small></article>
