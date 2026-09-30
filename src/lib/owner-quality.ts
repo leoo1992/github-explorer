@@ -177,9 +177,12 @@ export async function analyzeOwnerQualityBatch(owner: string, offset: number, li
   const settled = await mapWithConcurrency(batch, 2, (repository) =>
     scoreRepository(repository, headers),
   );
-  const scores = settled.flatMap((result) =>
-    result.status === 'fulfilled' ? [result.value] : [],
+  const scored = settled.flatMap((result, index) =>
+    result.status === 'fulfilled'
+      ? [{ name: batch[index]!.name, score: result.value }]
+      : [],
   );
+  const scores = scored.map((item) => item.score);
 
   if (scores.length !== batch.length) {
     throw new Error(`Falha no lote ${safeOffset + 1}-${safeOffset + batch.length}. Nenhuma média parcial será usada.`);
@@ -191,6 +194,7 @@ export async function analyzeOwnerQualityBatch(owner: string, offset: number, li
     offset: safeOffset,
     processed: scores.length,
     scores,
+    repositories: scored,
     nextOffset: safeOffset + scores.length,
     complete: safeOffset + scores.length >= repositories.length,
   };
