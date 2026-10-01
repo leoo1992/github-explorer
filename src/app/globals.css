@@ -241,3 +241,17 @@ h1 { margin-bottom: 16px; font-size: clamp(36px, 5vw, 66px); line-height: .98; l
 .quality-modal-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 4px; border-bottom: 1px solid var(--border); }
 .quality-modal-row span { overflow-wrap: anywhere; }
 .quality-modal-row strong { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+
+.owner-quality-start { margin-top: 14px; width: 100%; min-height: 42px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text); font-weight: 700; cursor: pointer; }
+.owner-quality-start:hover:not(:disabled) { border-color: var(--cyan); }
+.owner-quality-start:disabled { opacity: .65; cursor: wait; }
+.owner-quality-warning { display: block; margin-top: 9px; line-height: 1.45; }
+.quality-modal-actions { padding: 14px 22px 0; }
+.quality-modal-actions button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 9px 13px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); color: var(--text); font-weight: 700; cursor: pointer; }
+.quality-modal-actions svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.quality-modal-table-wrap { overflow-x: auto; }
+.quality-modal-table { width: 100%; border-collapse: collapse; }
+.quality-modal-table th, .quality-modal-table td { padding: 12px 4px; border-bottom: 1px solid var(--border); text-align: left; }
+.quality-modal-table th:last-child, .quality-modal-table td:last-child { text-align: right; }
+.quality-modal-table th { color: var(--muted); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
+.quality-modal-perfect { margin: 18px 4px 4px; color: var(--muted); }
