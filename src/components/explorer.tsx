@@ -72,12 +72,14 @@ function Overview({
   ownerQualityLoading,
   ownerQualityProgress,
   ownerQualityStatus,
+  onStartOwnerQuality,
 }: {
   data: RepositoryAnalysis;
   ownerQuality: OwnerQualitySummary | null;
   ownerQualityLoading: boolean;
   ownerQualityProgress: { analyzed: number; total: number } | null;
   ownerQualityStatus: string;
+  onStartOwnerQuality: () => void;
 }) {
   const scoredSignals = data.qualitySignals.filter(
     (item) => item.label !== 'TypeScript',
@@ -109,6 +111,17 @@ function Overview({
               : ownerQuality?.complete
                 ? `${ownerQuality.analyzedRepositories}/${ownerQuality.totalRepositories} analisados · média final`
                 : 'Não foi possível concluir a análise do owner'}
+          </small>
+          <button
+            className="owner-quality-start"
+            type="button"
+            onClick={onStartOwnerQuality}
+            disabled={ownerQualityLoading}
+          >
+            {ownerQualityLoading ? 'Verificação em andamento…' : `Verificar owner ${data.repository.owner}`}
+          </button>
+          <small className="owner-quality-warning">
+            A verificação geral analisa todos os repositórios públicos do owner e pode demorar alguns minutos. Ao concluir, os resultados serão exibidos em uma janela.
           </small>
         </article>
         <article><span>Manifestos</span><strong>{data.totals.manifests}</strong><small>package.json analisados</small></article>
@@ -320,96 +333,6 @@ export function Explorer() {
       setAnalysis(result);
       setTab('overview');
 
-      const requestId = ownerQualityRequestRef.current + 1;
-      ownerQualityRequestRef.current = requestId;
-      setOwnerQuality(null);
-      setOwnerQualityProgress(null);
-      setOwnerRepositoryScores([]);
-      setOwnerQualityModalOpen(false);
-      setOwnerQualityLoading(true);
-
-      // Dispara também a agregação completa no servidor. Ela continua independente
-      // dos timers da aba e deixa o resultado disponível no cache da Vercel.
-      void fetch(
-        `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&quality_v=20260930bg`,
-        { cache: 'no-store' },
-      ).catch(() => undefined);
-
-      void (async () => {
-        let offset = 0;
-        let total = 0;
-        const scores: number[] = [];
-        let consecutiveFailures = 0;
-
-        try {
-          while (requestId === ownerQualityRequestRef.current) {
-            setOwnerQualityStatus(consecutiveFailures ? `tentativa ${consecutiveFailures + 1} do lote` : 'média parcial');
-            try {
-              const ownerResponse = await fetch(
-                `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&offset=${offset}&limit=1&quality_v=20260930f`,
-                { cache: 'no-store' },
-              );
-              const batch = (await ownerResponse.json()) as {
-                totalRepositories?: number;
-                scores?: number[];
-                repositories?: Array<{ name: string; score: number }>;
-                nextOffset?: number;
-                complete?: boolean;
-                error?: string;
-              };
-              if (!ownerResponse.ok || !batch.scores || batch.totalRepositories === undefined) {
-                throw new Error(batch.error ?? 'Falha ao analisar o owner.');
-              }
-
-              consecutiveFailures = 0;
-              total = batch.totalRepositories;
-              scores.push(...batch.scores);
-              if (batch.repositories?.length) {
-                setOwnerRepositoryScores((current) => [...current, ...batch.repositories!]);
-              }
-              offset = batch.nextOffset ?? scores.length;
-              setOwnerQualityProgress({ analyzed: scores.length, total });
-
-              const currentAverage = scores.length
-                ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
-                : null;
-              setOwnerQuality({
-                owner: result.repository.owner,
-                average: currentAverage,
-                totalRepositories: total,
-                analyzedRepositories: scores.length,
-                complete: Boolean(batch.complete),
-                scope: 'public',
-                analyzedAt: new Date().toISOString(),
-              });
-              setOwnerQualityStatus(batch.complete ? 'média final' : 'média parcial');
-
-              if (batch.complete) {
-                setOwnerQualityModalOpen(true);
-                break;
-              }
-              setOwnerQualityStatus('aguardando API do GitHub · próxima análise em 3s');
-              await new Promise((resolve) => window.setTimeout(resolve, 3000));
-            } catch {
-              consecutiveFailures += 1;
-              setOwnerQualityStatus(`reprocessando lote · tentativa ${consecutiveFailures + 1}`);
-              if (consecutiveFailures >= 8) {
-                setOwnerQualityStatus('aguardando API do GitHub · nova tentativa em 15s');
-                await new Promise((resolve) => window.setTimeout(resolve, 15000));
-                consecutiveFailures = 0;
-              } else {
-                await new Promise((resolve) =>
-                  window.setTimeout(resolve, Math.min(3000 * 2 ** consecutiveFailures, 30000)),
-                );
-              }
-            }
-          }
-        } finally {
-          if (requestId === ownerQualityRequestRef.current) {
-            setOwnerQualityLoading(false);
-          }
-        }
-      })();
       const url = new URL(window.location.href);
       url.searchParams.set('repo', result.repository.fullName);
       window.history.replaceState(null, '', url);
@@ -419,6 +342,102 @@ export function Explorer() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const startOwnerQuality = (result = analysis) => {
+    if (!result || ownerQualityLoading) return;
+
+        const requestId = ownerQualityRequestRef.current + 1;
+        ownerQualityRequestRef.current = requestId;
+        setOwnerQuality(null);
+        setOwnerQualityProgress(null);
+        setOwnerRepositoryScores([]);
+        setOwnerQualityModalOpen(false);
+        setOwnerQualityLoading(true);
+  
+        // Dispara também a agregação completa no servidor. Ela continua independente
+        // dos timers da aba e deixa o resultado disponível no cache da Vercel.
+        void fetch(
+          `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&quality_v=20260930bg`,
+          { cache: 'no-store' },
+        ).catch(() => undefined);
+  
+        void (async () => {
+          let offset = 0;
+          let total = 0;
+          const scores: number[] = [];
+          let consecutiveFailures = 0;
+  
+          try {
+            while (requestId === ownerQualityRequestRef.current) {
+              setOwnerQualityStatus(consecutiveFailures ? `tentativa ${consecutiveFailures + 1} do lote` : 'média parcial');
+              try {
+                const ownerResponse = await fetch(
+                  `/api/owner-quality?owner=${encodeURIComponent(result.repository.owner)}&offset=${offset}&limit=1&quality_v=20260930f`,
+                  { cache: 'no-store' },
+                );
+                const batch = (await ownerResponse.json()) as {
+                  totalRepositories?: number;
+                  scores?: number[];
+                  repositories?: Array<{ name: string; score: number }>;
+                  nextOffset?: number;
+                  complete?: boolean;
+                  error?: string;
+                };
+                if (!ownerResponse.ok || !batch.scores || batch.totalRepositories === undefined) {
+                  throw new Error(batch.error ?? 'Falha ao analisar o owner.');
+                }
+  
+                consecutiveFailures = 0;
+                total = batch.totalRepositories;
+                scores.push(...batch.scores);
+                if (batch.repositories?.length) {
+                  setOwnerRepositoryScores((current) => [...current, ...batch.repositories!]);
+                }
+                offset = batch.nextOffset ?? scores.length;
+                setOwnerQualityProgress({ analyzed: scores.length, total });
+  
+                const currentAverage = scores.length
+                  ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+                  : null;
+                setOwnerQuality({
+                  owner: result.repository.owner,
+                  average: currentAverage,
+                  totalRepositories: total,
+                  analyzedRepositories: scores.length,
+                  complete: Boolean(batch.complete),
+                  scope: 'public',
+                  analyzedAt: new Date().toISOString(),
+                });
+                setOwnerQualityStatus(batch.complete ? 'média final' : 'média parcial');
+  
+                if (batch.complete) {
+                  setOwnerQualityModalOpen(true);
+                  break;
+                }
+                setOwnerQualityStatus('aguardando API do GitHub · próxima análise em 3s');
+                await new Promise((resolve) => window.setTimeout(resolve, 3000));
+              } catch {
+                consecutiveFailures += 1;
+                setOwnerQualityStatus(`reprocessando lote · tentativa ${consecutiveFailures + 1}`);
+                if (consecutiveFailures >= 8) {
+                  setOwnerQualityStatus('aguardando API do GitHub · nova tentativa em 15s');
+                  await new Promise((resolve) => window.setTimeout(resolve, 15000));
+                  consecutiveFailures = 0;
+                } else {
+                  await new Promise((resolve) =>
+                    window.setTimeout(resolve, Math.min(3000 * 2 ** consecutiveFailures, 30000)),
+                  );
+                }
+              }
+            }
+          } finally {
+            if (requestId === ownerQualityRequestRef.current) {
+              setOwnerQualityLoading(false);
+            }
+          }
+        })();
+  
   };
 
   useEffect(() => {
@@ -477,6 +496,20 @@ export function Explorer() {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void analyze();
+  };
+
+  const copyOwnerQualityTable = async () => {
+    const below100 = ownerRepositoryScores
+      .filter((item) => item.score < 100)
+      .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name));
+    const table = [
+      '| Repositório | Qualidade |',
+      '| --- | ---: |',
+      ...below100.map((item) => `| ${item.name.replace(/\\|/g, '\\|')} | ${item.score}% |`),
+    ].join('\\n');
+    await navigator.clipboard.writeText(table);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
   };
 
   const copyShareLink = async () => {
@@ -599,6 +632,7 @@ export function Explorer() {
                 ownerQualityLoading={ownerQualityLoading}
                 ownerQualityProgress={ownerQualityProgress}
                 ownerQualityStatus={ownerQualityStatus}
+                onStartOwnerQuality={() => startOwnerQuality()}
               />
             ) : null}
             {tab === 'architecture' ? <Architecture layers={analysis.layers} stack={analysis.stack} /> : null}
@@ -643,15 +677,35 @@ export function Explorer() {
               </button>
             </div>
 
+            <div className="quality-modal-actions">
+              <button type="button" onClick={() => void copyOwnerQualityTable()}>
+                <Icon name={copied ? 'check' : 'copy'} /> {copied ? 'Tabela copiada' : 'Copiar tabela'}
+              </button>
+            </div>
+
             <div className="quality-modal-list">
-              {[...ownerRepositoryScores]
-                .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-                .map((item) => (
-                  <div className="quality-modal-row" key={item.name}>
-                    <span>{item.name}</span>
-                    <strong>{item.score}%</strong>
-                  </div>
-                ))}
+              {ownerRepositoryScores.some((item) => item.score < 100) ? (
+                <div className="quality-modal-table-wrap">
+                  <table className="quality-modal-table">
+                    <thead>
+                      <tr><th>Repositório</th><th>Qualidade</th></tr>
+                    </thead>
+                    <tbody>
+                      {[...ownerRepositoryScores]
+                        .filter((item) => item.score < 100)
+                        .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name))
+                        .map((item) => (
+                          <tr key={item.name}>
+                            <td>{item.name}</td>
+                            <td><strong>{item.score}%</strong></td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="quality-modal-perfect">Todos os repositórios públicos atingiram 100%.</p>
+              )}
             </div>
           </section>
         </div>
