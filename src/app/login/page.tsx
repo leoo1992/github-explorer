@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { AuthForm } from '@/components/auth-form';
 import styles from './page.module.css';
 
@@ -22,7 +23,9 @@ export default function LoginPage() {
               <div><strong>3</strong><span><b>Analise</b><small>Repositórios, owners e projetos públicos.</small></span></div>
             </div>
           </div>
-          <AuthForm />
+          <Suspense fallback={<div className={styles.loading}>Carregando acesso…</div>}>
+            <AuthForm />
+          </Suspense>
         </section>
       </div>
     </main>
