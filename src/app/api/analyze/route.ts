@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { requirePaidApiAccess } from '@/lib/access';
 import { analyzeRepository } from '@/lib/github-analyzer';
+import { sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,10 @@ export async function GET(request: NextRequest) {
 
   const repo = request.nextUrl.searchParams.get('repo')?.trim();
   const mode = request.nextUrl.searchParams.get('mode')?.trim();
+  const rawCriteria = request.nextUrl.searchParams.get('criteria');
+  const criteriaIds = rawCriteria
+    ? sanitizeQualityCriteriaIds(rawCriteria.split(',').map((value) => value.trim()).filter(Boolean))
+    : undefined;
 
   if (!repo) {
     return Response.json(
@@ -21,6 +26,7 @@ export async function GET(request: NextRequest) {
   try {
     const analysis = await analyzeRepository(repo, {
       allowProjectLookup: mode === 'project',
+      criteriaIds,
     });
     return Response.json(analysis, {
       headers: { 'cache-control': 'private, no-store' },
