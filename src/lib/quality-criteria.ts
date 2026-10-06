@@ -34,6 +34,13 @@ export const QUALITY_CRITERIA: QualityCriterion[] = [
 
 const BY_ID = new Map(QUALITY_CRITERIA.map((criterion) => [criterion.id, criterion]));
 
+export const LIVE_CI_CRITERIA_IDS = new Set([
+  'pipeline-green',
+  'lint-pass',
+  'tests-pass',
+  'build-pass',
+]);
+
 export const QUALITY_PRESETS: Record<string, { label: string; ids: string[] }> = {
   complete: {
     label: 'Completa',
@@ -63,6 +70,10 @@ export function sanitizeQualityCriteriaIds(ids?: Iterable<string> | null) {
 
 export function qualityCriterionLabels(ids?: Iterable<string> | null) {
   return new Set(sanitizeQualityCriteriaIds(ids).map((id) => BY_ID.get(id)!.label));
+}
+
+export function requiresLiveCiEvidence(ids?: Iterable<string> | null) {
+  return sanitizeQualityCriteriaIds(ids).some((id) => LIVE_CI_CRITERIA_IDS.has(id));
 }
 
 export function calculateQualityScore(signals: QualitySignal[], ids?: Iterable<string> | null) {
