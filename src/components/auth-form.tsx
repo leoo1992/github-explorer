@@ -32,8 +32,7 @@ const NO_PROVIDERS: AuthProviderAvailability = {
 export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const requestedMode: AuthMode = searchParams.get('mode') === 'login' ? 'login' : 'signup';
-  const [mode, setMode] = useState<AuthMode>(requestedMode);
+  const mode: AuthMode = searchParams.get('mode') === 'login' ? 'login' : 'signup';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,10 +41,6 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
   const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/pricing';
   const failedProvider = searchParams.get('error') === 'oauth' ? searchParams.get('provider') : null;
-
-  useEffect(() => {
-    setMode(requestedMode);
-  }, [requestedMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +78,6 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
   function switchMode(nextMode: AuthMode) {
     setMessage('');
-    setMode(nextMode);
 
     const params = new URLSearchParams(searchParams.toString());
     if (nextMode === 'login') params.set('mode', 'login');
@@ -116,9 +110,6 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
         });
         if (error) throw error;
 
-        // With email confirmation enabled Supabase must not issue a session at signup.
-        // If it does, fail closed and immediately clear it rather than silently accepting
-        // an unverified account.
         if (data.session) {
           await supabase.auth.signOut();
           setMessage('Cadastro não concluído porque a verificação de e-mail está indisponível.');
