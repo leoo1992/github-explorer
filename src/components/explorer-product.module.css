@@ -1,0 +1,267 @@
+.modeSwitch {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 4px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.56);
+}
+
+.modeButton {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 13px;
+  color: #94a3b8;
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.modeButton:hover {
+  color: #e2e8f0;
+}
+
+.modeButtonActive {
+  color: #f8fafc;
+  background: rgba(59, 130, 246, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.28);
+}
+
+.modeButton:active {
+  transform: translateY(1px);
+}
+
+.inputHint {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.inputHint strong {
+  color: #cbd5e1;
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.productCard {
+  padding: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.48));
+}
+
+.productTag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.14);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.productCard h3 {
+  margin: 0 0 8px;
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.productCard p {
+  margin: 0;
+  color: #94a3b8;
+  line-height: 1.55;
+  font-size: 0.88rem;
+}
+
+.ownerPortfolio {
+  margin-top: 22px;
+  padding: 24px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent 38%),
+    rgba(15, 23, 42, 0.72);
+}
+
+.ownerHero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.ownerEyebrow {
+  margin: 0 0 6px;
+  color: #60a5fa;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ownerHero h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+}
+
+.ownerHero p {
+  margin: 7px 0 0;
+  max-width: 680px;
+  color: #94a3b8;
+  line-height: 1.55;
+}
+
+.ownerScore {
+  display: grid;
+  place-items: center;
+  min-width: 92px;
+  min-height: 92px;
+  border-radius: 22px;
+  color: #f8fafc;
+  background: rgba(59, 130, 246, 0.13);
+  border: 1px solid rgba(96, 165, 250, 0.24);
+}
+
+.ownerScore strong {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.ownerScore span {
+  margin-top: 4px;
+  color: #93c5fd;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ownerMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ownerMetric {
+  padding: 15px;
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.ownerMetric span,
+.ownerMetric small {
+  display: block;
+  color: #94a3b8;
+}
+
+.ownerMetric strong {
+  display: block;
+  margin: 4px 0;
+  color: #f8fafc;
+  font-size: 1.18rem;
+}
+
+.progressWrap {
+  margin-top: 18px;
+}
+
+.progressMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  color: #94a3b8;
+  font-size: 0.77rem;
+}
+
+.progressTrack {
+  overflow: hidden;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.13);
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3b82f6, #22d3ee);
+  transition: width 220ms ease;
+}
+
+.ownerActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.ownerActions button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(96, 165, 250, 0.26);
+  border-radius: 11px;
+  color: #e2e8f0;
+  background: rgba(59, 130, 246, 0.12);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.trustNote {
+  margin: 16px 0 0;
+  color: #64748b;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .modeSwitch {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .modeButton {
+    flex: 1 0 auto;
+  }
+
+  .inputHint {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .productGrid,
+  .ownerMetrics {
+    grid-template-columns: 1fr;
+  }
+
+  .ownerHero {
+    flex-direction: column;
+  }
+
+  .ownerScore {
+    width: 100%;
+    min-height: 76px;
+  }
+}

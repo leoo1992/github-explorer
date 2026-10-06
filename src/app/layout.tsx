@@ -2,11 +2,18 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RepoScope | GitHub Architecture Explorer',
+  title: 'RepoScope | GitHub Engineering Intelligence',
   description:
-    'Explore arquitetura, tecnologias, qualidade e estrutura de repositórios públicos do GitHub.',
+    'Analise repositórios e portfólios públicos do GitHub com sinais de arquitetura, stack, qualidade e maturidade de engenharia para recrutamento e liderança técnica.',
   applicationName: 'RepoScope',
   authors: [{ name: 'Leonardo Santos Custódio' }],
+  keywords: [
+    'GitHub analysis',
+    'technical recruiting',
+    'engineering intelligence',
+    'repository quality',
+    'software architecture',
+  ],
 };
 
 export const viewport: Viewport = {

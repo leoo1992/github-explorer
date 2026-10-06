@@ -38,6 +38,10 @@ interface GitHubContent {
   encoding?: string;
 }
 
+interface GitHubRepositorySearch {
+  items: GitHubRepository[];
+}
+
 interface PackageManifest {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -77,7 +81,7 @@ const STACK_RULES: Array<{
   { name: 'Vercel', category: 'DevOps', files: [/vercel\.json$/] },
 ];
 
-function parseRepoInput(input: string) {
+function parseDirectRepoInput(input: string) {
   const normalized = input.trim().replace(/\/$/, '');
   const urlMatch = normalized.match(
     /^(?:https?:\/\/)?github\.com\/([^/]+)\/([^/#?]+)(?:[/?#].*)?$/i,
@@ -87,10 +91,8 @@ function parseRepoInput(input: string) {
   const owner = urlMatch?.[1] ?? shortMatch?.[1];
   const repo = urlMatch?.[2] ?? shortMatch?.[2];
 
-  if (!owner || !repo || !/^[A-Za-z0-9_.-]+$/.test(owner) || !/^[A-Za-z0-9_.-]+$/.test(repo)) {
-    throw new Error('Informe uma URL do GitHub ou owner/repository válido.');
-  }
-
+  if (!owner || !repo) return null;
+  if (!/^[A-Za-z0-9_.-]+$/.test(owner) || !/^[A-Za-z0-9_.-]+$/.test(repo)) return null;
   return { owner, repo };
 }
 
@@ -128,6 +130,36 @@ async function githubFetch<T>(url: string, headers: HeadersInit): Promise<{ data
   return {
     data: (await response.json()) as T,
     remaining: Number.isFinite(remaining) ? remaining : null,
+  };
+}
+
+async function resolveRepoInput(input: string, headers: HeadersInit, allowProjectLookup: boolean) {
+  const direct = parseDirectRepoInput(input);
+  if (direct) return { ...direct, remaining: null as number | null };
+
+  const project = input.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\/$/, '');
+  if (!allowProjectLookup || !project || project.includes('/') || !/^[A-Za-z0-9_.-]+$/.test(project)) {
+    throw new Error('Informe uma URL do GitHub ou owner/repository válido.');
+  }
+
+  const query = encodeURIComponent(`${project} in:name`);
+  const result = await githubFetch<GitHubRepositorySearch>(
+    `https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc&per_page=10`,
+    headers,
+  );
+  const exact = result.data.items.find(
+    (item) => item.name.toLowerCase() === project.toLowerCase(),
+  );
+  const repository = exact ?? result.data.items[0];
+
+  if (!repository) {
+    throw new Error(`Nenhum repositório público encontrado para "${project}".`);
+  }
+
+  return {
+    owner: repository.owner.login,
+    repo: repository.name,
+    remaining: result.remaining,
   };
 }
 
@@ -240,9 +272,17 @@ function buildLayers(stack: StackItem[], tree: TreeEntry[]): ArchitectureLayer[]
   return layers;
 }
 
-export async function analyzeRepository(input: string): Promise<RepositoryAnalysis> {
-  const { owner, repo } = parseRepoInput(input);
+export async function analyzeRepository(
+  input: string,
+  options: { allowProjectLookup?: boolean } = {},
+): Promise<RepositoryAnalysis> {
   const headers = buildHeaders();
+  const resolved = await resolveRepoInput(
+    input,
+    headers,
+    Boolean(options.allowProjectLookup),
+  );
+  const { owner, repo } = resolved;
   const base = `https://api.github.com/repos/${owner}/${repo}`;
 
   const repositoryResult = await githubFetch<GitHubRepository>(base, headers);
@@ -324,6 +364,7 @@ export async function analyzeRepository(input: string): Promise<RepositoryAnalys
     .slice(0, 700);
 
   const remainingCandidates = [
+    resolved.remaining,
     repositoryResult.remaining,
     languagesResult.remaining,
     treeResult.remaining,
