@@ -1,5 +1,5 @@
 import { analyzeQualitySignals } from '@/lib/quality-analyzer';
-import { qualityCriterionLabels, sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
+import { qualityCriterionLabels, requiresLiveCiEvidence, sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
 import type { OwnerQualitySummary, TreeEntry } from '@/types/repository';
 
 interface GitHubRepositoryListItem {
@@ -32,13 +32,6 @@ class GitHubRequestError extends Error {
     this.retryable = retryable;
   }
 }
-
-const LIVE_CI_LABELS = new Set([
-  'Pipeline completo verde',
-  'Lint realmente passa',
-  'Testes passam',
-  'Build passa',
-]);
 
 function buildHeaders() {
   const headers: HeadersInit = {
@@ -149,8 +142,7 @@ async function scoreRepository(
   criterionIds: string[],
 ) {
   let lastError: unknown;
-  const selectedLabels = qualityCriterionLabels(criterionIds);
-  const needsLiveCi = [...LIVE_CI_LABELS].some((label) => selectedLabels.has(label));
+  const needsLiveCi = requiresLiveCiEvidence(criterionIds);
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
