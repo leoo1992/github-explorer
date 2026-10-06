@@ -1,12 +1,24 @@
 # RepoScope — GitHub Engineering Intelligence
 
-RepoScope transforma repositórios públicos do GitHub em sinais objetivos de arquitetura, stack, qualidade e maturidade de engenharia. O produto foi desenhado para recrutadores técnicos, Tech Leads, empresas de recrutamento e times de tecnologia.
+RepoScope transforma repositórios públicos do GitHub em sinais observáveis de arquitetura, stack, qualidade e maturidade de engenharia. O produto foi estruturado como SaaS pago para recrutadores técnicos, Tech Leads, empresas de recrutamento e times de tecnologia.
 
-## Casos de uso
+## Fluxo comercial
 
-- **Repositório** — informe `owner/repository` ou uma URL completa do GitHub;
-- **Owner / profissional** — informe apenas o owner ou a URL do perfil para analisar o portfólio público em lote;
-- **Só o projeto** — informe apenas o nome de um projeto e o RepoScope busca a melhor correspondência pública antes de analisar.
+1. visitante acessa a landing pública e vê uma demonstração fictícia da avaliação;
+2. cria uma conta com e-mail/senha, Google ou Microsoft;
+3. é direcionado para a página do plano;
+4. realiza a assinatura pelo Stripe;
+5. somente após a confirmação do pagamento o dashboard e as APIs de análise são liberados.
+
+Não existe análise gratuita no fluxo atual.
+
+## Formas de análise
+
+- **Repositório** — `owner/repository` ou URL completa do GitHub;
+- **Owner / organização** — owner ou URL de perfil para análise em lote dos repositórios públicos;
+- **Nome do projeto** — busca a correspondência pública mais relevante antes de analisar.
+
+Os exemplos exibidos na aplicação usam projetos públicos genéricos, como `vercel/next.js`, `facebook/react` e `django`.
 
 ## O que entrega
 
@@ -17,29 +29,23 @@ RepoScope transforma repositórios públicos do GitHub em sinais objetivos de ar
 - sinais de qualidade como CI, testes, lint, type checking, Docker, lockfile e licença;
 - estrutura de arquivos com busca;
 - inventário de dependências;
-- score agregado de qualidade dos repositórios públicos de um owner;
-- links compartilháveis por repositório ou owner;
-- cache server-side e análise concorrente em lotes;
+- score agregado dos sinais de qualidade encontrados nos repositórios públicos de um owner;
+- análise concorrente em lotes;
 - tratamento de rate limit e erros da API do GitHub.
 
-## Público-alvo
-
-- recrutadores e empresas de recrutamento que precisam fazer triagem técnica com mais evidências;
-- Tech Leads e Engineering Managers que precisam compreender rapidamente um projeto;
-- empresas de tecnologia que desejam padronizar critérios de avaliação de repositórios e portfólios.
-
-O score representa sinais observáveis do repositório. Ele não substitui entrevista técnica, contexto de projeto ou avaliação humana.
+O score representa somente sinais técnicos observáveis no repositório. Ele não representa competência profissional, não substitui entrevista técnica e não deve ser usado como decisão automática de contratação.
 
 ## Stack
 
 - Next.js 16
 - React 19
 - TypeScript
-- Tailwind CSS 4
+- Supabase Auth + Postgres
+- Stripe Billing
 - GitHub REST API
 - Vercel
 
-## Executar
+## Executar localmente
 
 ```bash
 npm install
@@ -49,31 +55,73 @@ npm run dev
 
 Abra `http://localhost:3000`.
 
-O token é opcional, mas recomendado em produção para análises de owner:
+## Variáveis de ambiente
 
 ```env
 GITHUB_TOKEN=
+
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SECRET_KEY=
+
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_ID=
+NEXT_PUBLIC_PLAN_PRICE_LABEL=R$ 79/mês
 ```
 
-O token é utilizado somente no servidor e nunca é enviado ao browser.
+Nunca exponha `SUPABASE_SECRET_KEY`, `STRIPE_SECRET_KEY` ou `STRIPE_WEBHOOK_SECRET` no cliente.
 
-## Endpoints
+## Supabase
+
+Execute `supabase/schema.sql` no projeto de produção. A tabela `subscriptions` possui RLS e usuários autenticados podem ler apenas a própria assinatura. Escritas são realizadas somente pelo backend usando a chave secreta.
+
+Em Authentication configure:
+
+- Email/Password;
+- Google OAuth;
+- Microsoft/Azure OAuth;
+- URL de produção como Site URL;
+- `/auth/callback` entre as Redirect URLs permitidas.
+
+## Stripe
+
+Crie um produto recorrente e defina o Price ID em `STRIPE_PRICE_ID`.
+
+Configure o webhook de produção para:
 
 ```text
-GET /api/health
-GET /api/analyze?repo=leoo1992/pulsebi&mode=repository
-GET /api/analyze?repo=next.js&mode=project
-GET /api/owner-quality?owner=leoo1992&offset=0&limit=6
+POST /api/billing/webhook
 ```
 
-## Estratégia comercial
+Eventos utilizados:
 
-Veja [docs/COMMERCIALIZATION.md](docs/COMMERCIALIZATION.md).
+- `checkout.session.completed`;
+- `customer.subscription.created`;
+- `customer.subscription.updated`;
+- `customer.subscription.deleted`.
 
-## Arquitetura
+A rota de retorno do checkout confirma a sessão no servidor antes de encaminhar o usuário ao dashboard.
 
-Veja [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+## Endpoints protegidos
+
+```text
+GET /api/analyze?repo=vercel/next.js&mode=repository
+GET /api/analyze?repo=django&mode=project
+GET /api/owner-quality?owner=vercel&offset=0&limit=6
+```
+
+Sem sessão autenticada retornam `401`. Sem assinatura ativa retornam `402`.
+
+## Documentação
+
+- [Estratégia comercial](docs/COMMERCIALIZATION.md)
+- [Arquitetura](docs/ARCHITECTURE.md)
 
 ## Segurança
 
-O projeto analisa somente repositórios públicos. Nenhum segredo ou token é retornado ao cliente.
+- análise restrita a repositórios públicos;
+- APIs de análise protegidas no servidor por autenticação e assinatura ativa;
+- assinatura sincronizada pelo webhook Stripe com validação de assinatura criptográfica;
+- tabela de assinatura protegida por RLS;
+- nenhuma chave secreta é enviada ao navegador.
