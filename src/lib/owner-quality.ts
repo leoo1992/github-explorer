@@ -113,7 +113,7 @@ async function scoreRepository(
 ) {
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const tree = await repositoryTree(repository, headers);
       const { signals } = await analyzeQualitySignals({
@@ -128,7 +128,7 @@ async function scoreRepository(
       return scoreSignals(signals);
     } catch (error) {
       lastError = error;
-      if (attempt < 3) await delay(750 * 2 ** attempt);
+      if (attempt < 2) await delay(400 * 2 ** attempt);
     }
   }
 
@@ -172,9 +172,9 @@ export async function analyzeOwnerQualityBatch(owner: string, offset: number, li
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
   const safeOffset = Math.max(0, Math.min(offset, repositories.length));
-  const safeLimit = Math.max(1, Math.min(limit, 10));
+  const safeLimit = Math.max(1, Math.min(limit, 20));
   const batch = repositories.slice(safeOffset, safeOffset + safeLimit);
-  const settled = await mapWithConcurrency(batch, 2, (repository) =>
+  const settled = await mapWithConcurrency(batch, 4, (repository) =>
     scoreRepository(repository, headers),
   );
   const scored = settled.flatMap((result, index) =>
@@ -207,11 +207,9 @@ export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySu
 
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
-  const settled = await mapWithConcurrency(repositories, 2, async (repository) => {
-    const score = await scoreRepository(repository, headers);
-    await delay(3000);
-    return score;
-  });
+  const settled = await mapWithConcurrency(repositories, 5, (repository) =>
+    scoreRepository(repository, headers),
+  );
 
   const scoredRepositories = settled.flatMap((result, index) =>
     result.status === 'fulfilled'
