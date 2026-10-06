@@ -2,80 +2,94 @@
 
 ## Posicionamento
 
-RepoScope é um SaaS de **engineering intelligence** que transforma evidências públicas do GitHub em uma leitura técnica rápida, consistente e compartilhável.
+O RepoScope é um produto de **engineering intelligence** que transforma evidências públicas do GitHub em uma leitura técnica rápida, consistente e compartilhável.
 
-O produto apresenta sinais observáveis de engenharia — arquitetura, stack, CI/CD, testes, lint, Docker, documentação e outros artefatos — sem afirmar que o score representa competência profissional.
+O produto não toma decisões de contratação. Ele organiza sinais técnicos observáveis para apoiar revisão humana por recrutadores técnicos, Tech Leads e equipes de engenharia.
 
 ## Modelo comercial atual
 
 ### RepoScope Pro
 
-O MVP comercial opera com **acesso somente pago**. Não existe análise gratuita após o lançamento comercial.
+Preço: **R$ 9,90 por mês**.
 
-Fluxo:
+O fluxo atual é paid-only:
 
-1. visitante acessa a landing pública e vê exemplos fictícios do resultado;
+1. visitante acessa a landing pública e vê uma demonstração com dados fictícios;
 2. cria conta por e-mail/senha, Google ou Microsoft;
-3. autentica-se no Supabase Auth;
-4. segue para o checkout recorrente do Stripe;
-5. o backend libera o produto somente após confirmação da assinatura;
-6. o usuário autenticado com assinatura ativa acessa análises de repositório, owner e nome de projeto;
-7. alterações de assinatura são sincronizadas por webhooks do Stripe.
+3. segue para o checkout Stripe;
+4. a assinatura é confirmada no servidor e sincronizada por webhook;
+5. somente usuários com assinatura `active` ou `trialing` acessam o dashboard e os endpoints de análise.
 
-A landing pode demonstrar o produto, mas os endpoints de análise devem permanecer protegidos por autenticação e assinatura ativa.
+Não existe análise gratuita no fluxo atual.
 
-## Público-alvo
+## Entregas do plano
 
-- recrutadores técnicos, como ferramenta auxiliar de leitura de evidências;
+- análise de repositório público;
+- análise agregada de owner/organização;
+- busca por nome de projeto;
+- stack, linguagens, arquitetura e dependências;
+- sinais de qualidade de engenharia;
+- evidências explicáveis para cada score;
+- acesso ao Customer Portal do Stripe para gerenciar assinatura, pagamento e cancelamento.
+
+## Público prioritário
+
+- recrutadores técnicos;
+- empresas de recrutamento e seleção;
 - Tech Leads e Engineering Managers;
-- empresas de tecnologia em revisão inicial e due diligence técnica;
-- consultorias e equipes que precisam entender projetos públicos rapidamente.
+- times de tecnologia fazendo revisão inicial de software público.
 
 ## Princípios de confiança
 
-Para contextos de recrutamento, o RepoScope é uma ferramenta de apoio à revisão humana e não um mecanismo de decisão automática.
+O score mede sinais observáveis presentes nos repositórios públicos analisados. Ele não representa competência profissional e não deve ser usado como decisão automática de contratação.
 
-- sempre mostrar evidências por trás do score;
-- não recomendar contratação ou rejeição;
-- não inferir atributos pessoais ou sensíveis;
-- não ranquear pessoas para contratação;
-- explicar limitações de amostragem, projetos antigos e código não público;
-- permitir que a decisão final permaneça com uma pessoa responsável.
+Para uso em recrutamento:
 
-## Billing
+- sempre exibir evidências por trás do score;
+- manter revisão humana;
+- não inferir atributos pessoais;
+- não classificar automaticamente candidatos para contratação;
+- explicar limitações de amostragem, projetos antigos e código não público.
 
-A cobrança usa Stripe Billing + Checkout Sessions em modo `subscription`.
+## Arquitetura comercial
 
-- preço recorrente configurado por `STRIPE_PRICE_ID`;
-- assinatura ativa/trialing libera acesso;
-- webhook assinado sincroniza o estado da assinatura com Supabase;
-- cancelamentos e alterações posteriores devem refletir no banco antes de autorizar novas análises;
-- produção e teste usam credenciais separadas.
+- **Supabase Auth** — cadastro, login, sessão e OAuth;
+- **Supabase Postgres** — estado de assinatura com RLS;
+- **Stripe Billing + Checkout** — cobrança recorrente;
+- **Stripe Customer Portal** — autosserviço pós-venda;
+- **GitHub REST API** — dados públicos analisados;
+- **Vercel** — aplicação Next.js e endpoints server-side.
 
-O valor exibido na aplicação deve corresponder ao Price efetivamente configurado no Stripe. O preço de R$ 79/mês existente durante a integração é apenas um valor de teste até definição comercial explícita.
+## Estado de provisionamento
 
-## Autenticação
+- projeto Supabase `RepoScope` criado em `sa-east-1`;
+- tabela `public.subscriptions` aplicada com RLS;
+- produto Stripe de teste `RepoScope Pro` criado;
+- preço de teste ativo de R$ 9,90/mês;
+- preço antigo de R$ 79/mês desativado;
+- Customer Portal de teste configurado;
+- fluxo de checkout, confirmação, webhooks e portal implementado no código;
+- CI exige typecheck, lint, testes, cobertura mínima de 80% e build.
 
-Supabase Auth é a camada de identidade.
+## Dependências externas para produção
 
-Métodos previstos:
+- credenciais Google OAuth;
+- credenciais Microsoft Entra ID OAuth;
+- habilitação dos provedores sociais no Supabase Auth;
+- secret key do Supabase configurada no ambiente server-side;
+- Stripe em live mode com produto/preço live de R$ 9,90/mês;
+- restricted/secret Stripe key e webhook signing secret no ambiente server-side;
+- configuração das variáveis no projeto Vercel com acesso ao scope correto;
+- Site URL e Redirect URLs de produção no Supabase Auth.
 
-- e-mail e senha;
-- Google OAuth;
-- Microsoft/Azure OAuth.
+## Próximas evoluções de produto
 
-As URLs de callback devem ser limitadas às URLs oficiais do produto e aos ambientes de preview/desenvolvimento necessários.
+Depois do MVP pago estabilizado, os incrementos de maior valor são:
 
-## Próximas evoluções comerciais
-
-- Customer Portal do Stripe para autoatendimento da assinatura;
 - histórico de análises;
-- relatórios exportáveis;
-- limites de uso por plano;
-- workspaces e RBAC para equipes;
+- exportação PDF/CSV;
+- workspaces de equipe;
 - GitHub App para repositórios privados;
-- SSO empresarial e integrações comerciais.
-
-## Métricas
-
-Acompanhar conversão landing → cadastro → checkout → assinatura ativa, taxa de cancelamento, falhas de pagamento, análises por usuário, retenção e custo médio por análise.
+- limites de uso por plano;
+- relatórios compartilháveis;
+- auditoria e retenção configurável para clientes empresariais.
