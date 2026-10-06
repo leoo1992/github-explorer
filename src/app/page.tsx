@@ -21,7 +21,7 @@ export default async function HomePage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <Link href="/" className={styles.brand}><span>RS</span><div><strong>RepoScope</strong><small>Engineering Intelligence</small></div></Link>
-        <nav><a href="#como-funciona">Como funciona</a><a href="#exemplo">Exemplo</a><Link href="/login" className={styles.login}>Entrar</Link><Link href="/login?next=/pricing" className={styles.ctaSmall}>Começar</Link></nav>
+        <nav><a href="#como-funciona">Como funciona</a><a href="#exemplo">Exemplo</a><Link href="/login?mode=login&next=/dashboard" className={styles.login}>Entrar</Link><Link href="/login?next=/pricing" className={styles.ctaSmall}>Começar</Link></nav>
       </header>
 
       <section className={styles.hero}>
