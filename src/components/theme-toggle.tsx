@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
 type Theme = 'light' | 'dark';
 
 function applyTheme(theme: Theme) {
@@ -14,32 +12,20 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>('dark');
-
-  useEffect(() => {
-    const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-    setTheme(current);
-  }, []);
-
   function toggleTheme() {
-    const next: Theme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    applyTheme(next);
+    const current: Theme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
   }
-
-  const nextLabel = theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro';
 
   return (
     <button
       type="button"
       className="theme-toggle"
       onClick={toggleTheme}
-      aria-label={nextLabel}
-      title={nextLabel}
+      aria-label="Alternar tema claro e escuro"
+      title="Alternar tema claro e escuro"
     >
-      <span className="theme-toggle-icon" aria-hidden="true">
-        {theme === 'dark' ? '☀' : '☾'}
-      </span>
+      <span className="theme-toggle-icon" aria-hidden="true">◐</span>
     </button>
   );
 }
