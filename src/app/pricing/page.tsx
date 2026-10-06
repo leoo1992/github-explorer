@@ -11,7 +11,7 @@ export default async function PricingPage() {
   if (!access.user) redirect('/login?next=/pricing');
   if (access.paid) redirect('/dashboard');
 
-  const priceLabel = process.env.NEXT_PUBLIC_PLAN_PRICE_LABEL ?? 'R$ 79/mês';
+  const priceLabel = process.env.NEXT_PUBLIC_PLAN_PRICE_LABEL ?? 'R$ 9,90/mês';
 
   return (
     <main className={styles.page}>
