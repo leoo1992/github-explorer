@@ -3,71 +3,75 @@
 ```text
 Browser
   │
-  ├─ Landing pública
-  ├─ Login / cadastro
-  │    └─ Supabase Auth
-  │         ├─ e-mail/senha
-  │         ├─ Google OAuth
-  │         └─ Microsoft/Azure OAuth
+  ├─ Landing pública / Login / Pricing
+  │      │
+  │      └─ Supabase Auth
+  │             ├─ Email + senha
+  │             ├─ Google OAuth
+  │             └─ Microsoft/Azure OAuth
   │
-  ├─ Pricing / Checkout
-  │    └─ Stripe Checkout + Billing
-  │         └─ Webhook assinado
-  │              └─ Supabase public.subscriptions
+  ├─ Stripe Checkout ──> /api/billing/checkout
+  │                         │
+  │                         └─ Stripe Billing
+  │                              │
+  │                              └─ /api/billing/webhook
+  │                                      │
+  │                                      └─ public.subscriptions (Supabase)
   │
-  └─ Dashboard protegido
-       ├─ GET /api/analyze
-       └─ GET /api/owner-quality
-              │
-              ├─ valida usuário Supabase
-              ├─ valida assinatura ativa/trialing
-              ├─ GitHub APIs
-              └─ Analyzer Engine
-                   ├─ stack detection
-                   ├─ architecture layers
-                   ├─ quality signals
-                   └─ dependency inventory
+  ├─ /account ──> Stripe Customer Portal
+  │
+  └─ Dashboard pago
+         │
+         ├─ GET /api/analyze
+         └─ GET /api/owner-quality
+                │
+                ├─ valida sessão Supabase
+                ├─ valida assinatura active/trialing
+                └─ GitHub REST API
+                       │
+                       └─ Analyzer Engine
+                            ├─ stack detection
+                            ├─ architecture layers
+                            ├─ quality signals
+                            └─ dependency inventory
 ```
 
-## Decisões
+## Autenticação
 
-- **Next.js App Router / Route Handlers** mantém integrações e segredos no servidor.
-- **Supabase Auth** gerencia identidade e sessões SSR em cookies usando `@supabase/ssr`.
-- **RLS** protege a tabela `subscriptions`; o usuário autenticado lê somente a própria assinatura.
-- **Supabase secret key** é usada apenas no backend para sincronizações administrativas originadas do Stripe.
-- **Stripe Checkout + Billing** gerencia a assinatura recorrente.
-- **Webhook Stripe** valida assinatura criptográfica antes de alterar estado de billing.
-- **Autorização server-side** exige usuário válido e assinatura `active` ou `trialing` antes de executar uma análise.
-- **GITHUB_TOKEN** permanece server-side.
-- **Análise heurística** mostra evidências detectadas e não afirma competência profissional nem toma decisões automáticas de contratação.
+- Next.js usa `@supabase/ssr` com sessão em cookies.
+- O proxy renova/valida claims antes de páginas protegidas.
+- Cadastro/login suporta e-mail e senha; Google e Microsoft usam OAuth do Supabase.
+- A callback da aplicação é `/auth/callback`.
+- A callback a cadastrar nos provedores sociais é `https://boamqtcyvflgpewomfhj.supabase.co/auth/v1/callback`.
 
-## Variáveis principais
+## Autorização paga
 
-```text
-GITHUB_TOKEN
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-SUPABASE_SECRET_KEY
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-STRIPE_PRICE_ID
-NEXT_PUBLIC_PLAN_PRICE_LABEL
-```
+- `public.subscriptions` referencia `auth.users(id)`.
+- RLS está habilitado.
+- Usuários autenticados possuem somente `SELECT` da própria assinatura.
+- Escritas de billing são server-side.
+- Status `active` e `trialing` liberam as APIs de análise.
+- Sem autenticação, APIs retornam `401`; sem assinatura ativa, retornam `402`.
 
-Nenhuma chave secreta deve ser exposta com prefixo `NEXT_PUBLIC_`.
+## Billing
 
-## Fluxo de autorização
+- Stripe Checkout opera em `mode: subscription`.
+- O plano comercial é RepoScope Pro por **R$ 9,90/mês**.
+- Webhooks verificam `stripe-signature` antes de processar eventos.
+- O estado é sincronizado em checkout concluído, pagamento assíncrono concluído, mudanças de assinatura, invoice paga e falha de invoice.
+- Customer Portal permite atualizar dados/método de pagamento, consultar faturas e cancelar ao fim do período.
 
-1. usuário autentica no Supabase;
-2. inicia Checkout no Stripe;
-3. Stripe confirma a assinatura e dispara eventos;
-4. webhook sincroniza `public.subscriptions`;
-5. dashboard e APIs consultam o estado da assinatura;
-6. somente usuários autenticados com assinatura liberada executam análises.
+## Análise técnica
 
-## Limites intencionais do analisador
+- O `GITHUB_TOKEN` fica somente no servidor.
+- O produto analisa repositórios públicos.
+- O score é heurístico e sempre deve ser apresentado com suas evidências.
+- Scores de repositórios não representam competência profissional nem podem ser usados como decisão automática de contratação.
 
-- apenas repositórios públicos nesta fase;
-- árvore visual resumida em repositórios muito grandes;
-- detecção prioriza stacks e sinais comuns de engenharia;
-- scores representam somente evidências observáveis no código/repositório.
+## Segurança
+
+- chaves secretas do Supabase e Stripe nunca usam prefixo `NEXT_PUBLIC_`;
+- Stripe webhook signing secret é server-side;
+- tabela de assinatura usa RLS e menor privilégio;
+- nenhuma chave secreta é persistida no repositório;
+- CI executa typecheck, lint, testes com cobertura mínima de 80% e build.
