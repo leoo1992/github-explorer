@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 function safeNext(value: FormDataEntryValue | string | null) {
@@ -38,11 +39,20 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type: 'email',
       token_hash: tokenHash,
     });
-    if (error) throw error;
+    if (error || !data.user) throw error ?? new Error('user not returned');
+
+    const admin = createAdminClient();
+    const { error: updateError } = await admin.auth.admin.updateUserById(data.user.id, {
+      app_metadata: {
+        ...data.user.app_metadata,
+        email_verified_manually: true,
+      },
+    });
+    if (updateError) throw updateError;
 
     // Confirmation and login remain separate actions. Clear the temporary
     // session created by verifyOtp so the user must authenticate explicitly.
