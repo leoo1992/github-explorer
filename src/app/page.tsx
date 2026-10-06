@@ -16,12 +16,20 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   const providers = await getAuthProviderAvailability();
   const authMethods = describeAuthMethods(providers);
+  const signupReady = providers.emailConfirmationRequired;
+  const loginHref = '/login?mode=login&next=/dashboard';
+  const signupHref = '/login?next=/pricing';
 
   return (
     <main className={styles.page}>
       <header className={styles.header}>
         <Link href="/" className={styles.brand}><span>RS</span><div><strong>RepoScope</strong><small>Engineering Intelligence</small></div></Link>
-        <nav><a href="#como-funciona">Como funciona</a><a href="#exemplo">Exemplo</a><Link href="/login?mode=login&next=/dashboard" className={styles.login}>Entrar</Link><Link href="/login?next=/pricing" className={styles.ctaSmall}>Começar</Link></nav>
+        <nav>
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#exemplo">Exemplo</a>
+          <Link href={loginHref} className={styles.login}>Entrar</Link>
+          {signupReady ? <Link href={signupHref} className={styles.ctaSmall}>Começar</Link> : null}
+        </nav>
       </header>
 
       <section className={styles.hero}>
@@ -29,7 +37,10 @@ export default async function HomePage() {
           <p className={styles.eyebrow}>GITHUB ENGINEERING INTELLIGENCE</p>
           <h1>Entenda um repositório técnico em minutos, não em horas.</h1>
           <p>RepoScope transforma evidências públicas do GitHub em uma leitura estruturada de arquitetura, stack, dependências e maturidade de engenharia para recrutadores, Tech Leads e equipes de tecnologia.</p>
-          <div className={styles.heroActions}><Link href="/login?next=/pricing">Criar conta e liberar acesso</Link><a href="#exemplo">Ver exemplo de avaliação</a></div>
+          <div className={styles.heroActions}>
+            <Link href={signupReady ? signupHref : loginHref}>{signupReady ? 'Criar conta e liberar acesso' : 'Entrar na sua conta'}</Link>
+            <a href="#exemplo">Ver exemplo de avaliação</a>
+          </div>
           <div className={styles.heroTrust}>
             <span>E-mail e senha</span>
             {providers.google ? <span>Google</span> : null}
@@ -54,9 +65,9 @@ export default async function HomePage() {
       </section>
 
       <section className={styles.how} id="como-funciona">
-        <div className={styles.sectionHeading}><p>COMO FUNCIONA</p><h2>Do cadastro à avaliação em três etapas.</h2></div>
+        <div className={styles.sectionHeading}><p>COMO FUNCIONA</p><h2>{signupReady ? 'Do cadastro à avaliação em três etapas.' : 'Do acesso à avaliação em três etapas.'}</h2></div>
         <div className={styles.steps}>
-          <article><span>01</span><h3>Crie sua conta</h3><p>{authMethods}</p></article>
+          <article><span>01</span><h3>{signupReady ? 'Crie sua conta' : 'Entre na sua conta'}</h3><p>{signupReady ? authMethods : 'E-mail e senha.'}</p></article>
           <article><span>02</span><h3>Ative o plano</h3><p>Você é direcionado ao checkout seguro do Stripe. Nenhuma avaliação é liberada antes da confirmação.</p></article>
           <article><span>03</span><h3>Analise</h3><p>Informe uma URL de repositório, um owner ou apenas o nome de um projeto público.</p></article>
         </div>
@@ -76,8 +87,12 @@ export default async function HomePage() {
       </section>
 
       <section className={styles.sales}>
-        <div><p>PRONTO PARA USAR?</p><h2>Pare de abrir dezenas de arquivos para entender o primeiro nível de um projeto.</h2><span>Crie sua conta, assine o RepoScope Pro e libere as avaliações.</span></div>
-        <Link href="/login?next=/pricing">Começar agora</Link>
+        <div>
+          <p>PRONTO PARA USAR?</p>
+          <h2>Pare de abrir dezenas de arquivos para entender o primeiro nível de um projeto.</h2>
+          <span>{signupReady ? 'Crie sua conta, confirme seu e-mail, assine o RepoScope Pro e libere as avaliações.' : 'Entre na sua conta para continuar seu acesso ao RepoScope.'}</span>
+        </div>
+        <Link href={signupReady ? signupHref : loginHref}>{signupReady ? 'Começar agora' : 'Entrar'}</Link>
       </section>
 
       <footer className={styles.footer}><strong>RepoScope</strong><span>Engineering intelligence baseada em sinais observáveis de repositórios públicos. Não substitui entrevista técnica, contexto de projeto ou avaliação humana.</span></footer>
