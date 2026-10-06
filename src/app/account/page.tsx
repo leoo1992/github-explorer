@@ -13,7 +13,7 @@ function formatDate(value: string | null) {
 
 export default async function AccountPage() {
   const access = await getAccessState();
-  if (!access.user) redirect('/login?next=/account');
+  if (!access.user) redirect('/login?mode=login&next=/account');
 
   const internalAccess = access.admin;
 
