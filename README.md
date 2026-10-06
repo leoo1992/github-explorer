@@ -7,7 +7,7 @@ RepoScope transforma repositórios públicos do GitHub em sinais observáveis de
 1. visitante acessa a landing pública e vê uma demonstração fictícia da avaliação;
 2. cria uma conta com e-mail/senha, Google ou Microsoft;
 3. é direcionado para a página do plano;
-4. realiza a assinatura pelo Stripe;
+4. realiza a assinatura mensal de **R$ 9,90** pelo Stripe;
 5. somente após a confirmação do pagamento o dashboard e as APIs de análise são liberados.
 
 Não existe análise gratuita no fluxo atual.
@@ -67,14 +67,14 @@ SUPABASE_SECRET_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_PRICE_ID=
-NEXT_PUBLIC_PLAN_PRICE_LABEL=R$ 79/mês
+NEXT_PUBLIC_PLAN_PRICE_LABEL=R$ 9,90/mês
 ```
 
 Nunca exponha `SUPABASE_SECRET_KEY`, `STRIPE_SECRET_KEY` ou `STRIPE_WEBHOOK_SECRET` no cliente.
 
 ## Supabase
 
-Execute `supabase/schema.sql` no projeto de produção. A tabela `subscriptions` possui RLS e usuários autenticados podem ler apenas a própria assinatura. Escritas são realizadas somente pelo backend usando a chave secreta.
+O projeto de produção é o `RepoScope` em `sa-east-1`. A tabela `subscriptions` possui RLS e usuários autenticados podem ler apenas a própria assinatura. Escritas são realizadas somente pelo backend usando a chave secreta.
 
 Em Authentication configure:
 
@@ -84,9 +84,15 @@ Em Authentication configure:
 - URL de produção como Site URL;
 - `/auth/callback` entre as Redirect URLs permitidas.
 
+Callback dos provedores sociais no Supabase:
+
+```text
+https://boamqtcyvflgpewomfhj.supabase.co/auth/v1/callback
+```
+
 ## Stripe
 
-Crie um produto recorrente e defina o Price ID em `STRIPE_PRICE_ID`.
+O plano comercial é **RepoScope Pro — R$ 9,90/mês**.
 
 Configure o webhook de produção para:
 
@@ -97,11 +103,14 @@ POST /api/billing/webhook
 Eventos utilizados:
 
 - `checkout.session.completed`;
+- `checkout.session.async_payment_succeeded`;
 - `customer.subscription.created`;
 - `customer.subscription.updated`;
-- `customer.subscription.deleted`.
+- `customer.subscription.deleted`;
+- `invoice.paid`;
+- `invoice.payment_failed`.
 
-A rota de retorno do checkout confirma a sessão no servidor antes de encaminhar o usuário ao dashboard.
+A rota de retorno do checkout confirma a sessão no servidor antes de encaminhar o usuário ao dashboard. O estado da assinatura também é atualizado por webhook para refletir renovações, cancelamentos e falhas de pagamento.
 
 ## Endpoints protegidos
 
