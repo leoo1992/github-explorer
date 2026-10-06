@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_QUALITY_CRITERIA_IDS,
@@ -273,6 +274,7 @@ function CriteriaSelector({ selected, setSelected, disabled }: {
 }
 
 export function ExplorerPaid() {
+  const router = useRouter();
   const [mode, setMode] = useState<SearchMode>('repository');
   const [input, setInput] = useState('vercel/next.js');
   const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(null);
@@ -296,17 +298,17 @@ export function ExplorerPaid() {
 
   function handleAccessStatus(status: number) {
     if (status === 401) {
-      window.location.assign('/login?next=/dashboard');
+      router.push('/login?next=/dashboard');
       return true;
     }
     if (status === 402) {
-      window.location.assign('/pricing');
+      router.push('/pricing');
       return true;
     }
     return false;
   }
 
-  async function analyzeRepository(value: string, selectedMode: SearchMode, criteriaIds: string[]) {
+  async function analyzeRepository(value: string, selectedMode: SearchMode) {
     const controller = startController();
     setLoading(true); setAnalysis(null); setOwnerSummary(null); setOwnerScores([]);
     setAnalysisState('running'); setStatusMessage('Coletando evidências públicas do GitHub');
@@ -335,7 +337,7 @@ export function ExplorerPaid() {
         const retry = 'retryAfterMs' in body && body.retryAfterMs ? body.retryAfterMs : waitMs;
         setAnalysisState('waiting');
         setStatusMessage('Aguardando disponibilidade dos dados · retomada automática');
-        await delay(Math.min(Math.max(retry, 2_000), 60_000), controller.signal);
+        await delay(Math.min(Math.max(retry, 2_000), 60 * 60 * 1_000), controller.signal);
         waitMs = Math.min(waitMs * 2, 30_000);
       } catch {
         if (controller.signal.aborted) return;
@@ -396,13 +398,19 @@ export function ExplorerPaid() {
         }
         if (batch.state === 'waiting' || batch.totalRepositories === undefined) {
           setAnalysisState('waiting'); setOwnerStatus('Aguardando dados do GitHub · retomada automática');
-          await delay(Math.min(Math.max(batch.retryAfterMs ?? transientWait, 2_000), 60_000), controller.signal);
+          await delay(Math.min(Math.max(batch.retryAfterMs ?? transientWait, 2_000), 60 * 60 * 1_000), controller.signal);
           transientWait = Math.min(transientWait * 2, 30_000);
           continue;
         }
 
         transientWait = 2_000;
         total = batch.totalRepositories;
+        if (total === 0) {
+          setAnalysisState('empty');
+          setStatusMessage('Este owner não possui repositórios públicos para analisar.');
+          setLoading(false);
+          return;
+        }
         for (const repository of batch.repositories ?? []) {
           const repositoryOffset = repository.offset;
           if (typeof repositoryOffset === 'number') {
@@ -430,7 +438,7 @@ export function ExplorerPaid() {
         if (!batch || controller.signal.aborted) return;
         if (batch.state === 'waiting' || batch.totalRepositories === undefined) {
           setAnalysisState('waiting'); setOwnerStatus('Aguardando nova janela de consulta · retomada automática');
-          await delay(Math.min(Math.max(batch.retryAfterMs ?? transientWait, 2_000), 60_000), controller.signal);
+          await delay(Math.min(Math.max(batch.retryAfterMs ?? transientWait, 2_000), 60 * 60 * 1_000), controller.signal);
           transientWait = Math.min(transientWait * 2, 30_000);
           continue;
         }
@@ -448,7 +456,7 @@ export function ExplorerPaid() {
         }
 
         setAnalysisState('waiting'); setOwnerStatus('Revalidando item pendente · retomada automática');
-        await delay(Math.min(Math.max(batch.retryAfterMs ?? 4_000, 2_000), 60_000), controller.signal);
+        await delay(Math.min(Math.max(batch.retryAfterMs ?? 4_000, 2_000), 60 * 60 * 1_000), controller.signal);
       } catch {
         if (controller.signal.aborted) return;
         setAnalysisState('waiting'); setOwnerStatus('Sincronizando item pendente · retomada automática');
@@ -470,7 +478,7 @@ export function ExplorerPaid() {
     setAppliedCriteria(criteriaSnapshot);
     setInput(normalized); setMode(selectedMode); setStatusMessage('');
     if (selectedMode === 'owner') void analyzeOwner(normalized, criteriaSnapshot);
-    else void analyzeRepository(normalized, selectedMode, criteriaSnapshot);
+    else void analyzeRepository(normalized, selectedMode);
   }
 
   function submit(event: FormEvent) { event.preventDefault(); run(); }
@@ -495,7 +503,7 @@ export function ExplorerPaid() {
       </section>
 
       <section className="shell workspace">
-        {loading && !ownerSummary ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>Nenhum detalhe técnico de falha é exposto nesta tela.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
+        {loading && !ownerSummary ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>A análise é retomada automaticamente sempre que uma etapa precisa aguardar.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
         {!analysis && !ownerSummary && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Escolha o tipo e os critérios da análise.</h2><p>{selectedCriteria.length} critérios estão selecionados para o próximo cálculo.</p></div> : null}
         {!analysis && !ownerSummary && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Ajuste a entrada e execute novamente quando quiser.</p></div> : null}
         {ownerSummary ? <OwnerResult summary={ownerSummary} repositories={ownerScores} status={ownerStatus} state={analysisState} criteriaCount={appliedCriteria.length} /> : null}
