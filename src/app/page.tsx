@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { describeAuthMethods, getAuthProviderAvailability } from '@/lib/auth-providers';
 import styles from './home.module.css';
 
 const signals = [
@@ -10,7 +11,12 @@ const signals = [
   ['Documentação técnica', 'Parcial', false],
 ] as const;
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  const providers = await getAuthProviderAvailability();
+  const authMethods = describeAuthMethods(providers);
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -24,7 +30,12 @@ export default function HomePage() {
           <h1>Entenda um repositório técnico em minutos, não em horas.</h1>
           <p>RepoScope transforma evidências públicas do GitHub em uma leitura estruturada de arquitetura, stack, dependências e maturidade de engenharia para recrutadores, Tech Leads e equipes de tecnologia.</p>
           <div className={styles.heroActions}><Link href="/login?next=/pricing">Criar conta e liberar acesso</Link><a href="#exemplo">Ver exemplo de avaliação</a></div>
-          <div className={styles.heroTrust}><span>Conta própria</span><span>Google</span><span>Microsoft</span><span>Pagamento via Stripe</span></div>
+          <div className={styles.heroTrust}>
+            <span>E-mail e senha</span>
+            {providers.google ? <span>Google</span> : null}
+            {providers.azure ? <span>Microsoft</span> : null}
+            <span>Pagamento via Stripe</span>
+          </div>
         </div>
         <div className={styles.heroPanel}>
           <div className={styles.panelTop}><span>ANÁLISE TÉCNICA</span><b>Exemplo ilustrativo</b></div>
@@ -45,7 +56,7 @@ export default function HomePage() {
       <section className={styles.how} id="como-funciona">
         <div className={styles.sectionHeading}><p>COMO FUNCIONA</p><h2>Do cadastro à avaliação em três etapas.</h2></div>
         <div className={styles.steps}>
-          <article><span>01</span><h3>Crie sua conta</h3><p>Cadastre-se com e-mail e senha ou entre com Google ou Microsoft.</p></article>
+          <article><span>01</span><h3>Crie sua conta</h3><p>{authMethods}</p></article>
           <article><span>02</span><h3>Ative o plano</h3><p>Você é direcionado ao checkout seguro do Stripe. Nenhuma avaliação é liberada antes da confirmação.</p></article>
           <article><span>03</span><h3>Analise</h3><p>Informe uma URL de repositório, um owner ou apenas o nome de um projeto público.</p></article>
         </div>
