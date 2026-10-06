@@ -33,6 +33,13 @@ class GitHubRequestError extends Error {
   }
 }
 
+const LIVE_CI_LABELS = new Set([
+  'Pipeline completo verde',
+  'Lint realmente passa',
+  'Testes passam',
+  'Build passa',
+]);
+
 function buildHeaders() {
   const headers: HeadersInit = {
     Accept: 'application/vnd.github+json',
@@ -142,11 +149,13 @@ async function scoreRepository(
   criterionIds: string[],
 ) {
   let lastError: unknown;
+  const selectedLabels = qualityCriterionLabels(criterionIds);
+  const needsLiveCi = [...LIVE_CI_LABELS].some((label) => selectedLabels.has(label));
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
       const tree = await repositoryTree(repository, headers);
-      const { signals } = await analyzeQualitySignals({
+      const result = await analyzeQualitySignals({
         owner: repository.owner.login,
         repo: repository.name,
         defaultBranch: repository.default_branch,
@@ -154,7 +163,20 @@ async function scoreRepository(
         dependencies: [],
         repositoryLicense: repository.license,
       });
-      return scoreSignals(signals, criterionIds);
+
+      const hasGitHubActions = result.signals.some(
+        (signal) => signal.label === 'GitHub Actions' && signal.found,
+      );
+      if (needsLiveCi && hasGitHubActions && result.remaining.length === 0) {
+        throw new GitHubRequestError(
+          'Evidência de CI temporariamente indisponível; reprocessamento necessário.',
+          503,
+          3_000,
+          true,
+        );
+      }
+
+      return scoreSignals(result.signals, criterionIds);
     } catch (error) {
       lastError = error;
       const wait = error instanceof GitHubRequestError ? error.retryAfterMs : 750 * 2 ** attempt;
