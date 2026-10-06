@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './paid-overrides.css';
 
 export const metadata: Metadata = {
   title: 'RepoScope | GitHub Engineering Intelligence',
