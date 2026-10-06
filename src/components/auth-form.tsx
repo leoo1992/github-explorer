@@ -116,7 +116,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
         },
       });
       if (error) throw error;
-    } catch (error) {
+    } catch {
       sessionStorage.setItem(FAILED_PROVIDER_KEY[provider], '1');
       document.cookie = `${FAILED_PROVIDER_COOKIE[provider]}=1; Path=/; Max-Age=600; SameSite=Lax`;
       setProviders((current) => ({ ...current, [provider]: false }));
