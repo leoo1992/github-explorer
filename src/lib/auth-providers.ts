@@ -46,6 +46,7 @@ export async function getAuthProviderAvailability(): Promise<AuthProviderAvailab
     if (!response.ok) return NONE;
 
     const settings = (await response.json()) as ProviderSettings;
+    const confirmationFlowReady = process.env.EMAIL_CONFIRMATION_FLOW_READY === 'true';
 
     return {
       google:
@@ -54,10 +55,10 @@ export async function getAuthProviderAvailability(): Promise<AuthProviderAvailab
       azure:
         settings.external?.azure === true &&
         cookieStore.get(FAILURE_COOKIE.azure)?.value !== '1',
-      // Supabase calls the inverse setting `mailer_autoconfirm`.
-      // Fail closed: signup is considered safe only when the API explicitly
-      // confirms that automatic email confirmation is disabled.
-      emailConfirmationRequired: settings.mailer_autoconfirm === false,
+      // Fail closed. Signup is exposed only when Supabase requires confirmation
+      // and the prefetch-safe RepoScope email template has been explicitly enabled.
+      emailConfirmationRequired:
+        settings.mailer_autoconfirm === false && confirmationFlowReady,
     };
   } catch {
     return NONE;
