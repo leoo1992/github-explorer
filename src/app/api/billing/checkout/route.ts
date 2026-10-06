@@ -22,19 +22,13 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/dashboard?checkout=success`,
+      success_url: `${origin}/api/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing?checkout=cancelled`,
       client_reference_id: userData.user.id,
       customer_email: userData.user.email,
       allow_promotion_codes: true,
-      metadata: {
-        supabase_user_id: userData.user.id,
-      },
-      subscription_data: {
-        metadata: {
-          supabase_user_id: userData.user.id,
-        },
-      },
+      metadata: { supabase_user_id: userData.user.id },
+      subscription_data: { metadata: { supabase_user_id: userData.user.id } },
     });
 
     if (!session.url) {
