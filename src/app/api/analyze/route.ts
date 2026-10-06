@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get('mode')?.trim();
 
   if (!repo) {
-    return Response.json({ error: 'Informe o parâmetro repo.' }, { status: 400 });
+    return Response.json(
+      { state: 'input' },
+      { status: 422, headers: { 'cache-control': 'private, no-store' } },
+    );
   }
 
   try {
@@ -23,11 +26,20 @@ export async function GET(request: NextRequest) {
       headers: { 'cache-control': 'private, no-store' },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown';
+    console.error('[repository-analysis] request deferred', { repo, mode, message });
+
+    const notFound = /não encontrado|not found|nenhum repositório/i.test(message);
+    if (notFound) {
+      return Response.json(
+        { state: 'not_found' },
+        { status: 404, headers: { 'cache-control': 'private, no-store' } },
+      );
+    }
+
     return Response.json(
-      {
-        error: error instanceof Error ? error.message : 'Não foi possível analisar o repositório.',
-      },
-      { status: 400, headers: { 'cache-control': 'private, no-store' } },
+      { state: 'waiting', retryAfterMs: 5_000 },
+      { status: 202, headers: { 'cache-control': 'private, no-store', 'retry-after': '5' } },
     );
   }
 }
