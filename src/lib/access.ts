@@ -10,6 +10,7 @@ export type SubscriptionState = {
 export type AccessState = {
   user: User | null;
   paid: boolean;
+  admin: boolean;
   subscription: SubscriptionState;
 };
 
@@ -20,7 +21,7 @@ export async function getAccessState(): Promise<AccessState> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
   if (userError || !userData.user) {
-    return { user: null, paid: false, subscription: null };
+    return { user: null, paid: false, admin: false, subscription: null };
   }
 
   const { data: subscription, error: subscriptionError } = await supabase
@@ -33,9 +34,12 @@ export async function getAccessState(): Promise<AccessState> {
     throw new Error(`Não foi possível validar a assinatura: ${subscriptionError.message}`);
   }
 
+  const admin = userData.user.app_metadata?.role === 'admin' || subscription?.price_id === 'internal_admin';
+
   return {
     user: userData.user,
-    paid: Boolean(subscription && PAID_STATUSES.has(subscription.status)),
+    admin,
+    paid: admin || Boolean(subscription && PAID_STATUSES.has(subscription.status)),
     subscription,
   };
 }
