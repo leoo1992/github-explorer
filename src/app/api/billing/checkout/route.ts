@@ -17,15 +17,26 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Plano de pagamento ainda não foi configurado.' }, { status: 503 });
     }
 
+    const { data: existingSubscription } = await supabase
+      .from('subscriptions')
+      .select('stripe_customer_id')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+
     const stripe = createStripeClient();
     const origin = new URL(request.url).origin;
+    const customerId = existingSubscription?.stripe_customer_id ?? undefined;
+    const integrationIdentifier = `reposcope_${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
+      integration_identifier: integrationIdentifier,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/api/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing?checkout=cancelled`,
       client_reference_id: userData.user.id,
-      customer_email: userData.user.email,
+      customer: customerId,
+      customer_email: customerId ? undefined : (userData.user.email ?? undefined),
       allow_promotion_codes: true,
       metadata: { supabase_user_id: userData.user.id },
       subscription_data: { metadata: { supabase_user_id: userData.user.id } },
