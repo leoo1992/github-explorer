@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
+import {
+  DEFAULT_QUALITY_CRITERIA_IDS,
+  QUALITY_CRITERIA,
+  QUALITY_PRESETS,
+  calculateQualityScore,
+  qualityCriterionLabels,
+} from '@/lib/quality-criteria';
 import type {
   ArchitectureLayer,
   DependencyItem,
@@ -12,8 +19,24 @@ import type {
 
 type SearchMode = 'repository' | 'owner' | 'project';
 type Tab = 'overview' | 'architecture' | 'files' | 'dependencies';
+type OwnerRepositoryScore = { name: string; score: number; offset?: number };
+type AnalysisState = 'idle' | 'running' | 'waiting' | 'complete' | 'empty';
 
-type OwnerRepositoryScore = { name: string; score: number };
+type OwnerBatch = {
+  state?: 'waiting' | 'not_found' | 'input';
+  retryAfterMs?: number;
+  totalRepositories?: number;
+  repositories?: OwnerRepositoryScore[];
+  pendingOffsets?: number[];
+  nextOffset?: number;
+  scanComplete?: boolean;
+  complete?: boolean;
+};
+
+type AnalysisControl = {
+  state?: 'waiting' | 'not_found' | 'input';
+  retryAfterMs?: number;
+};
 
 const modes: Record<SearchMode, { label: string; placeholder: string; hint: string; examples: string[] }> = {
   repository: {
@@ -36,12 +59,6 @@ const modes: Record<SearchMode, { label: string; placeholder: string; hint: stri
   },
 };
 
-function qualityPercent(data: RepositoryAnalysis) {
-  const scored = data.qualitySignals.filter((item) => item.label !== 'TypeScript');
-  if (!scored.length) return 0;
-  return Math.round((scored.filter((item) => item.found).length / scored.length) * 100);
-}
-
 function compact(value: number) {
   return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
@@ -50,16 +67,34 @@ function normalizeOwner(value: string) {
   const normalized = value.trim().replace(/\/+$/, '');
   const match = normalized.match(/^(?:https?:\/\/)?github\.com\/([^/?#]+)(?:[/?#].*)?$/i);
   const owner = (match?.[1] ?? normalized.replace(/^@/, '')).trim();
-  if (!owner || !/^[A-Za-z0-9_.-]+$/.test(owner)) throw new Error('Informe um owner válido do GitHub.');
-  return owner;
+  return owner && /^[A-Za-z0-9_.-]+$/.test(owner) ? owner : null;
 }
 
-function Overview({ data }: { data: RepositoryAnalysis }) {
-  const score = qualityPercent(data);
+function delay(ms: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) return resolve();
+    const timer = window.setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => {
+      window.clearTimeout(timer);
+      resolve();
+    }, { once: true });
+  });
+}
+
+function averageScore(repositories: OwnerRepositoryScore[]) {
+  if (!repositories.length) return null;
+  return Math.round(repositories.reduce((sum, item) => sum + item.score, 0) / repositories.length);
+}
+
+function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds: string[] }) {
+  const score = calculateQualityScore(data.qualitySignals, criteriaIds);
+  const labels = qualityCriterionLabels(criteriaIds);
+  const visibleSignals = data.qualitySignals.filter((signal) => labels.has(signal.label));
+
   return (
     <div className="tab-content">
       <section className="metric-grid">
-        <article><span>Qualidade</span><strong>{score}%</strong><small>sinais observáveis</small></article>
+        <article><span>Qualidade</span><strong>{score.score}%</strong><small>{score.passed}/{score.total} critérios atendidos</small></article>
         <article><span>Arquivos</span><strong>{compact(data.totals.files)}</strong><small>{data.totals.directories} diretórios</small></article>
         <article><span>Stack</span><strong>{data.stack.length}</strong><small>tecnologias detectadas</small></article>
         <article><span>Manifestos</span><strong>{data.totals.manifests}</strong><small>arquivos de dependência</small></article>
@@ -90,9 +125,9 @@ function Overview({ data }: { data: RepositoryAnalysis }) {
         </article>
 
         <article className="panel wide">
-          <div className="panel-head"><div><p>Engineering signals</p><h2>Evidências de qualidade</h2></div></div>
+          <div className="panel-head"><div><p>Engineering signals</p><h2>Critérios considerados na nota</h2></div><span className="criteria-count">{criteriaIds.length} selecionados</span></div>
           <div className="quality-grid">
-            {data.qualitySignals.map((signal) => (
+            {visibleSignals.map((signal) => (
               <div className={signal.found ? 'quality-card quality-ok' : 'quality-card'} key={signal.label}>
                 <span>{signal.found ? '✓' : '—'}</span>
                 <div><strong>{signal.label}</strong><small>{signal.detail}</small></div>
@@ -155,20 +190,85 @@ function Dependencies({ items }: { items: DependencyItem[] }) {
   );
 }
 
-function OwnerResult({ summary, repositories, status }: { summary: OwnerQualitySummary | null; repositories: OwnerRepositoryScore[]; status: string }) {
+function Progress({ current, total, status, waiting }: { current: number; total: number; status: string; waiting: boolean }) {
+  const percentage = total ? Math.min(100, Math.round((current / total) * 100)) : 0;
+  return (
+    <div className="analysis-progress" aria-live="polite">
+      <div className="analysis-progress-head"><div><strong>{status}</strong><span>{current} de {total} repositórios validados</span></div><b>{percentage}%</b></div>
+      <div className="analysis-progress-track"><span className={waiting ? 'waiting' : ''} style={{ width: `${percentage}%` }} /></div>
+      <small>O processamento continua automaticamente até validar todos os repositórios públicos.</small>
+    </div>
+  );
+}
+
+function OwnerResult({ summary, repositories, status, state, criteriaCount }: {
+  summary: OwnerQualitySummary;
+  repositories: OwnerRepositoryScore[];
+  status: string;
+  state: AnalysisState;
+  criteriaCount: number;
+}) {
   const attention = repositories.filter((item) => item.score < 100).sort((a, b) => a.score - b.score);
   return (
     <section className="panel">
-      <div className="panel-head"><div><p>Portfolio engineering scan</p><h2>@{summary?.owner ?? 'owner'}</h2></div></div>
+      <div className="panel-head"><div><p>Portfolio engineering scan</p><h2>@{summary.owner}</h2></div><span className="criteria-count">{criteriaCount} critérios</span></div>
+      {!summary.complete ? <Progress current={summary.analyzedRepositories} total={summary.totalRepositories} status={status} waiting={state === 'waiting'} /> : null}
       <section className="metric-grid">
-        <article><span>Média pública</span><strong>{summary?.average ?? '—'}{summary?.average !== null && summary?.average !== undefined ? '%' : ''}</strong><small>sinais técnicos agregados</small></article>
-        <article><span>Repositórios</span><strong>{summary?.totalRepositories ?? '—'}</strong><small>públicos encontrados</small></article>
-        <article><span>Analisados</span><strong>{summary?.analyzedRepositories ?? repositories.length}</strong><small>{status || 'em processamento'}</small></article>
+        <article><span>{summary.complete ? 'Média final' : 'Média parcial'}</span><strong>{summary.average ?? '—'}{summary.average !== null ? '%' : ''}</strong><small>sinais técnicos validados</small></article>
+        <article><span>Repositórios</span><strong>{summary.totalRepositories}</strong><small>públicos encontrados</small></article>
+        <article><span>Validados</span><strong>{summary.analyzedRepositories}</strong><small>{summary.complete ? 'análise concluída' : 'processamento em andamento'}</small></article>
         <article><span>Com atenção</span><strong>{attention.length}</strong><small>score abaixo de 100%</small></article>
       </section>
-      {attention.length ? <div className="dependency-table-wrap"><table className="dependency-table"><thead><tr><th>Repositório</th><th>Qualidade</th></tr></thead><tbody>{attention.map((item) => <tr key={item.name}><td><strong>{item.name}</strong></td><td>{item.score}%</td></tr>)}</tbody></table></div> : null}
+      {attention.length ? <div className="dependency-table-wrap"><table className="dependency-table"><thead><tr><th>Repositório</th><th>Qualidade</th></tr></thead><tbody>{attention.map((item) => <tr key={`${item.offset ?? item.name}-${item.name}`}><td><strong>{item.name}</strong></td><td>{item.score}%</td></tr>)}</tbody></table></div> : null}
       <p className="tree-note">O score mede sinais observáveis do repositório. Não representa competência profissional e não deve ser usado como decisão automática de contratação.</p>
     </section>
+  );
+}
+
+function CriteriaSelector({ selected, setSelected, disabled }: {
+  selected: string[];
+  setSelected: (ids: string[]) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const groups = [...new Set(QUALITY_CRITERIA.map((criterion) => criterion.group))];
+
+  function toggle(id: string) {
+    if (disabled) return;
+    if (selected.includes(id)) {
+      if (selected.length === 1) return;
+      setSelected(selected.filter((item) => item !== id));
+    } else {
+      setSelected([...selected, id]);
+    }
+  }
+
+  return (
+    <div className="criteria-selector">
+      <button className="criteria-trigger" type="button" onClick={() => setOpen((value) => !value)} disabled={disabled} aria-expanded={open}>
+        <span><strong>Critérios da nota</strong><small>{selected.length} de {QUALITY_CRITERIA.length} entram no cálculo</small></span>
+        <b>{open ? '−' : '+'}</b>
+      </button>
+      {open ? <div className="criteria-panel">
+        <div className="criteria-presets">
+          <span>Cenários rápidos</span>
+          {Object.entries(QUALITY_PRESETS).map(([key, preset]) => (
+            <button key={key} type="button" disabled={disabled} onClick={() => setSelected([...preset.ids])}>{preset.label}</button>
+          ))}
+        </div>
+        {groups.map((group) => <div className="criteria-group" key={group}>
+          <strong>{group}</strong>
+          <div className="criteria-grid">
+            {QUALITY_CRITERIA.filter((criterion) => criterion.group === group).map((criterion) => (
+              <label className={selected.includes(criterion.id) ? 'criterion checked' : 'criterion'} key={criterion.id}>
+                <input type="checkbox" checked={selected.includes(criterion.id)} disabled={disabled} onChange={() => toggle(criterion.id)} />
+                <span><b>{criterion.label}</b><small>{criterion.description}</small></span>
+              </label>
+            ))}
+          </div>
+        </div>)}
+      </div> : null}
+    </div>
   );
 }
 
@@ -179,49 +279,198 @@ export function ExplorerPaid() {
   const [ownerSummary, setOwnerSummary] = useState<OwnerQualitySummary | null>(null);
   const [ownerScores, setOwnerScores] = useState<OwnerRepositoryScore[]>([]);
   const [ownerStatus, setOwnerStatus] = useState('');
+  const [analysisState, setAnalysisState] = useState<AnalysisState>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
   const [tab, setTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [selectedCriteria, setSelectedCriteria] = useState<string[]>([...DEFAULT_QUALITY_CRITERIA_IDS]);
+  const [appliedCriteria, setAppliedCriteria] = useState<string[]>([...DEFAULT_QUALITY_CRITERIA_IDS]);
+  const activeController = useRef<AbortController | null>(null);
 
-  async function analyzeRepository(value: string, selectedMode: SearchMode) {
-    setLoading(true); setError(''); setAnalysis(null); setOwnerSummary(null); setOwnerScores([]);
-    try {
-      const response = await fetch(`/api/analyze?repo=${encodeURIComponent(value)}&mode=${selectedMode === 'project' ? 'project' : 'repository'}`, { cache: 'no-store' });
-      const body = (await response.json()) as RepositoryAnalysis | { error?: string };
-      if (!response.ok) throw new Error('error' in body ? body.error : 'Falha ao analisar repositório.');
-      const result = body as RepositoryAnalysis;
-      setAnalysis(result); setInput(result.repository.fullName); setMode('repository'); setTab('overview');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Falha ao analisar repositório.');
-    } finally { setLoading(false); }
+  function startController() {
+    activeController.current?.abort();
+    const controller = new AbortController();
+    activeController.current = controller;
+    return controller;
   }
 
-  async function analyzeOwner(value: string) {
-    let owner: string;
-    try { owner = normalizeOwner(value); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Owner inválido.'); return; }
-    setLoading(true); setError(''); setAnalysis(null); setOwnerSummary(null); setOwnerScores([]); setOwnerStatus('Iniciando análise');
-    let offset = 0; const scores: number[] = [];
-    try {
-      while (true) {
-        const response = await fetch(`/api/owner-quality?owner=${encodeURIComponent(owner)}&offset=${offset}&limit=6`, { cache: 'no-store' });
-        const batch = await response.json() as { totalRepositories?: number; scores?: number[]; repositories?: OwnerRepositoryScore[]; nextOffset?: number; complete?: boolean; error?: string };
-        if (!response.ok || !batch.scores || batch.totalRepositories === undefined) throw new Error(batch.error ?? 'Falha ao analisar owner.');
-        scores.push(...batch.scores); setOwnerScores((current) => [...current, ...(batch.repositories ?? [])]);
-        offset = batch.nextOffset ?? scores.length;
-        const average = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : null;
-        setOwnerSummary({ owner, average, totalRepositories: batch.totalRepositories, analyzedRepositories: scores.length, complete: Boolean(batch.complete), scope: 'public', analyzedAt: new Date().toISOString() });
-        setOwnerStatus(batch.complete ? 'Análise concluída' : `${scores.length}/${batch.totalRepositories} analisados`);
-        if (batch.complete) break;
+  function handleAccessStatus(status: number) {
+    if (status === 401) {
+      window.location.assign('/login?next=/dashboard');
+      return true;
+    }
+    if (status === 402) {
+      window.location.assign('/pricing');
+      return true;
+    }
+    return false;
+  }
+
+  async function analyzeRepository(value: string, selectedMode: SearchMode, criteriaIds: string[]) {
+    const controller = startController();
+    setLoading(true); setAnalysis(null); setOwnerSummary(null); setOwnerScores([]);
+    setAnalysisState('running'); setStatusMessage('Coletando evidências públicas do GitHub');
+    let waitMs = 2_000;
+
+    while (!controller.signal.aborted) {
+      try {
+        const response = await fetch(`/api/analyze?repo=${encodeURIComponent(value)}&mode=${selectedMode === 'project' ? 'project' : 'repository'}`, { cache: 'no-store', signal: controller.signal });
+        if (handleAccessStatus(response.status)) return;
+        const body = await response.json() as RepositoryAnalysis | AnalysisControl;
+
+        if (response.ok && 'repository' in body) {
+          setStatusMessage('Consolidando resultado');
+          setAnalysis(body); setInput(body.repository.fullName); setMode('repository'); setTab('overview');
+          setAnalysisState('complete'); setLoading(false);
+          return;
+        }
+
+        if ('state' in body && (body.state === 'not_found' || body.state === 'input')) {
+          setAnalysisState('empty');
+          setStatusMessage(body.state === 'not_found' ? 'Nenhum repositório público correspondente foi encontrado.' : 'Informe um repositório, URL ou projeto público válido.');
+          setLoading(false);
+          return;
+        }
+
+        const retry = 'retryAfterMs' in body && body.retryAfterMs ? body.retryAfterMs : waitMs;
+        setAnalysisState('waiting');
+        setStatusMessage('Aguardando disponibilidade dos dados · retomada automática');
+        await delay(Math.min(Math.max(retry, 2_000), 60_000), controller.signal);
+        waitMs = Math.min(waitMs * 2, 30_000);
+      } catch {
+        if (controller.signal.aborted) return;
+        setAnalysisState('waiting');
+        setStatusMessage('Sincronizando novamente com a fonte pública · retomada automática');
+        await delay(waitMs, controller.signal);
+        waitMs = Math.min(waitMs * 2, 30_000);
       }
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Falha ao analisar owner.'); }
-    finally { setLoading(false); }
+    }
+  }
+
+  async function requestOwnerBatch(owner: string, offset: number, limit: number, criteriaIds: string[], signal: AbortSignal) {
+    const criteria = encodeURIComponent(criteriaIds.join(','));
+    const response = await fetch(`/api/owner-quality?owner=${encodeURIComponent(owner)}&offset=${offset}&limit=${limit}&criteria=${criteria}`, { cache: 'no-store', signal });
+    if (handleAccessStatus(response.status)) return null;
+    return await response.json() as OwnerBatch;
+  }
+
+  async function analyzeOwner(value: string, criteriaIds: string[]) {
+    const owner = normalizeOwner(value);
+    if (!owner) {
+      setAnalysisState('empty');
+      setStatusMessage('Informe um owner ou uma URL pública válida do GitHub.');
+      return;
+    }
+
+    const controller = startController();
+    setLoading(true); setAnalysis(null); setOwnerSummary(null); setOwnerScores([]);
+    setOwnerStatus('Preparando portfólio público'); setAnalysisState('running'); setStatusMessage('');
+
+    const scoresByOffset = new Map<number, OwnerRepositoryScore>();
+    const pendingOffsets = new Set<number>();
+    let offset = 0;
+    let total = 0;
+    let transientWait = 2_000;
+
+    const publish = (complete = false) => {
+      const repositories = [...scoresByOffset.values()].sort((a, b) => (a.offset ?? 0) - (b.offset ?? 0));
+      setOwnerScores(repositories);
+      setOwnerSummary({
+        owner,
+        average: averageScore(repositories),
+        totalRepositories: total,
+        analyzedRepositories: repositories.length,
+        complete,
+        scope: 'public',
+        analyzedAt: new Date().toISOString(),
+      });
+    };
+
+    while (!controller.signal.aborted && (!total || offset < total)) {
+      try {
+        const batch = await requestOwnerBatch(owner, offset, 6, criteriaIds, controller.signal);
+        if (!batch || controller.signal.aborted) return;
+
+        if (batch.state === 'not_found' || batch.state === 'input') {
+          setAnalysisState('empty'); setStatusMessage('Nenhum portfólio público correspondente foi encontrado.'); setLoading(false); return;
+        }
+        if (batch.state === 'waiting' || batch.totalRepositories === undefined) {
+          setAnalysisState('waiting'); setOwnerStatus('Aguardando dados do GitHub · retomada automática');
+          await delay(Math.min(Math.max(batch.retryAfterMs ?? transientWait, 2_000), 60_000), controller.signal);
+          transientWait = Math.min(transientWait * 2, 30_000);
+          continue;
+        }
+
+        transientWait = 2_000;
+        total = batch.totalRepositories;
+        for (const repository of batch.repositories ?? []) {
+          const repositoryOffset = repository.offset;
+          if (typeof repositoryOffset === 'number') {
+            scoresByOffset.set(repositoryOffset, repository);
+            pendingOffsets.delete(repositoryOffset);
+          }
+        }
+        for (const pending of batch.pendingOffsets ?? []) pendingOffsets.add(pending);
+        offset = batch.nextOffset ?? Math.min(total, offset + 6);
+        setAnalysisState('running');
+        setOwnerStatus(`${scoresByOffset.size}/${total} repositórios validados`);
+        publish(false);
+      } catch {
+        if (controller.signal.aborted) return;
+        setAnalysisState('waiting'); setOwnerStatus('Sincronizando novamente · retomada automática');
+        await delay(transientWait, controller.signal);
+        transientWait = Math.min(transientWait * 2, 30_000);
+      }
+    }
+
+    while (!controller.signal.aborted && pendingOffsets.size > 0) {
+      const pendingOffset = [...pendingOffsets][0]!;
+      try {
+        const batch = await requestOwnerBatch(owner, pendingOffset, 1, criteriaIds, controller.signal);
+        if (!batch || controller.signal.aborted) return;
+        if (batch.state === 'waiting' || batch.totalRepositories === undefined) {
+          setAnalysisState('waiting'); setOwnerStatus('Aguardando nova janela de consulta · retomada automática');
+          await delay(Math.min(Math.max(batch.retryAfterMs ?? transientWait, 2_000), 60_000), controller.signal);
+          transientWait = Math.min(transientWait * 2, 30_000);
+          continue;
+        }
+
+        transientWait = 2_000;
+        total = batch.totalRepositories;
+        const repository = batch.repositories?.[0];
+        if (repository && typeof repository.offset === 'number') {
+          scoresByOffset.set(repository.offset, repository);
+          pendingOffsets.delete(repository.offset);
+          setAnalysisState('running');
+          setOwnerStatus(`${scoresByOffset.size}/${total} repositórios validados`);
+          publish(false);
+          continue;
+        }
+
+        setAnalysisState('waiting'); setOwnerStatus('Revalidando item pendente · retomada automática');
+        await delay(Math.min(Math.max(batch.retryAfterMs ?? 4_000, 2_000), 60_000), controller.signal);
+      } catch {
+        if (controller.signal.aborted) return;
+        setAnalysisState('waiting'); setOwnerStatus('Sincronizando item pendente · retomada automática');
+        await delay(transientWait, controller.signal);
+        transientWait = Math.min(transientWait * 2, 30_000);
+      }
+    }
+
+    if (!controller.signal.aborted) {
+      publish(true);
+      setOwnerStatus('Análise concluída'); setAnalysisState('complete'); setLoading(false);
+    }
   }
 
   function run(value = input, selectedMode = mode) {
     const normalized = value.trim();
-    if (!normalized) return;
-    setInput(normalized); setMode(selectedMode);
-    if (selectedMode === 'owner') void analyzeOwner(normalized); else void analyzeRepository(normalized, selectedMode);
+    if (!normalized || loading) return;
+    const criteriaSnapshot = [...selectedCriteria];
+    setAppliedCriteria(criteriaSnapshot);
+    setInput(normalized); setMode(selectedMode); setStatusMessage('');
+    if (selectedMode === 'owner') void analyzeOwner(normalized, criteriaSnapshot);
+    else void analyzeRepository(normalized, selectedMode, criteriaSnapshot);
   }
 
   function submit(event: FormEvent) { event.preventDefault(); run(); }
@@ -232,27 +481,28 @@ export function ExplorerPaid() {
       <section className="hero">
         <div className="topbar shell">
           <Link className="brand" href="/"><span className="brand-mark">RS</span><span><strong>RepoScope</strong><small>Engineering Intelligence</small></span></Link>
-          <div className="repo-actions"><Link className="secondary-action" href="/pricing">Plano Pro</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
+          <div className="repo-actions"><Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
         </div>
         <div className="hero-content shell">
-          <div className="hero-copy"><p className="eyebrow">ASSINATURA ATIVA</p><h1>Avalie projetos públicos com evidências técnicas.</h1><p>Use URL de repositório, owner ou nome de projeto. O motor analisa sinais observáveis do GitHub e apresenta o contexto técnico de forma estruturada.</p></div>
+          <div className="hero-copy"><p className="eyebrow">ASSINATURA ATIVA</p><h1>Avalie projetos públicos com evidências técnicas.</h1><p>Escolha o escopo e quais sinais entram no cálculo. O progresso é exibido durante toda a análise e etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>
           <form className="repo-form" onSubmit={submit}>
-            <div className="segmented">{(Object.keys(modes) as SearchMode[]).map((item) => <button key={item} className={mode === item ? 'active' : ''} type="button" onClick={() => { setMode(item); setError(''); }}>{modes[item].label}</button>)}</div>
-            <div className="repo-input"><input aria-label="Entrada do GitHub" value={input} onChange={(event) => setInput(event.target.value)} placeholder={active.placeholder} spellCheck={false} /><button type="submit" disabled={loading}>{loading ? 'Analisando…' : 'Analisar'}</button></div>
-            <div className="examples"><span>{active.hint} Exemplos:</span>{active.examples.map((example) => <button key={example} type="button" onClick={() => run(example, mode)}>{example}</button>)}</div>
+            <div className="segmented">{(Object.keys(modes) as SearchMode[]).map((item) => <button key={item} className={mode === item ? 'active' : ''} type="button" disabled={loading} onClick={() => { setMode(item); setStatusMessage(''); setAnalysisState('idle'); }}>{modes[item].label}</button>)}</div>
+            <div className="repo-input"><input aria-label="Entrada do GitHub" value={input} onChange={(event) => setInput(event.target.value)} placeholder={active.placeholder} spellCheck={false} disabled={loading} /><button type="submit" disabled={loading || !input.trim()}>{loading ? 'Processando…' : 'Analisar'}</button></div>
+            <CriteriaSelector selected={selectedCriteria} setSelected={setSelectedCriteria} disabled={loading} />
+            <div className="examples"><span>{active.hint} Exemplos:</span>{active.examples.map((example) => <button key={example} type="button" disabled={loading} onClick={() => run(example, mode)}>{example}</button>)}</div>
           </form>
         </div>
       </section>
 
       <section className="shell workspace">
-        {error ? <div className="error-box"><strong>Não foi possível concluir.</strong><span>{error}</span></div> : null}
-        {loading && !ownerSummary ? <div className="loading-layout"><div className="skeleton skeleton-title" /><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div><div className="skeleton skeleton-panel" /></div> : null}
-        {!analysis && !ownerSummary && !loading && !error ? <div className="empty-landing"><h2>Escolha o tipo de análise acima.</h2><p>O acesso está liberado pela sua assinatura ativa.</p></div> : null}
-        {ownerSummary ? <OwnerResult summary={ownerSummary} repositories={ownerScores} status={ownerStatus} /> : null}
+        {loading && !ownerSummary ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>Nenhum detalhe técnico de falha é exposto nesta tela.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
+        {!analysis && !ownerSummary && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Escolha o tipo e os critérios da análise.</h2><p>{selectedCriteria.length} critérios estão selecionados para o próximo cálculo.</p></div> : null}
+        {!analysis && !ownerSummary && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Ajuste a entrada e execute novamente quando quiser.</p></div> : null}
+        {ownerSummary ? <OwnerResult summary={ownerSummary} repositories={ownerScores} status={ownerStatus} state={analysisState} criteriaCount={appliedCriteria.length} /> : null}
         {analysis ? <>
           <header className="repo-header"><div className="repo-identity"><div className="repo-icon">◆</div><div><p>{analysis.repository.owner}</p><h2>{analysis.repository.name}</h2><span>{analysis.repository.description ?? 'Sem descrição cadastrada no GitHub.'}</span></div></div><div className="repo-actions"><a className="primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">Abrir GitHub</a></div><div className="repo-meta"><span><strong>{compact(analysis.repository.stars)}</strong> stars</span><span><strong>{compact(analysis.repository.forks)}</strong> forks</span><span><strong>{analysis.repository.defaultBranch}</strong> branch</span></div></header>
           <nav className="tabs">{([['overview','Visão geral'],['architecture','Arquitetura'],['files','Arquivos'],['dependencies','Dependências']] as const).map(([value,label]) => <button key={value} type="button" className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{label}</button>)}</nav>
-          {tab === 'overview' ? <Overview data={analysis} /> : null}
+          {tab === 'overview' ? <Overview data={analysis} criteriaIds={appliedCriteria} /> : null}
           {tab === 'architecture' ? <Architecture layers={analysis.layers} /> : null}
           {tab === 'files' ? <Files entries={analysis.tree} truncated={analysis.treeTruncated} /> : null}
           {tab === 'dependencies' ? <Dependencies items={analysis.dependencies} /> : null}
