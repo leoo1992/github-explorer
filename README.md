@@ -1,22 +1,34 @@
-# RepoScope — GitHub Architecture Explorer
+# RepoScope — GitHub Engineering Intelligence
 
-Aplicação web que analisa repositórios públicos do GitHub e apresenta arquitetura, stack, linguagens, dependências, árvore de arquivos e sinais de qualidade.
+RepoScope transforma repositórios públicos do GitHub em sinais objetivos de arquitetura, stack, qualidade e maturidade de engenharia. O produto foi desenhado para recrutadores técnicos, Tech Leads, empresas de recrutamento e times de tecnologia.
 
-## O que demonstra
+## Casos de uso
 
-- integração real com a API do GitHub;
+- **Repositório** — informe `owner/repository` ou uma URL completa do GitHub;
+- **Owner / profissional** — informe apenas o owner ou a URL do perfil para analisar o portfólio público em lote;
+- **Só o projeto** — informe apenas o nome de um projeto e o RepoScope busca a melhor correspondência pública antes de analisar.
+
+## O que entrega
+
 - análise heurística de arquitetura;
 - descoberta de tecnologias por dependências e estrutura;
-- inspeção de múltiplos `package.json`;
-- visualização da composição de linguagens;
+- composição de linguagens;
 - mapa de camadas arquiteturais;
-- sinais de qualidade como CI, testes, TypeScript, lint, Docker e licença;
-- explorador de arquivos com busca;
+- sinais de qualidade como CI, testes, lint, type checking, Docker, lockfile e licença;
+- estrutura de arquivos com busca;
 - inventário de dependências;
-- URL compartilhável via `?repo=owner/repository`;
-- layout responsivo;
-- cache server-side;
-- tratamento de rate limit e erros da API.
+- score agregado de qualidade dos repositórios públicos de um owner;
+- links compartilháveis por repositório ou owner;
+- cache server-side e análise concorrente em lotes;
+- tratamento de rate limit e erros da API do GitHub.
+
+## Público-alvo
+
+- recrutadores e empresas de recrutamento que precisam fazer triagem técnica com mais evidências;
+- Tech Leads e Engineering Managers que precisam compreender rapidamente um projeto;
+- empresas de tecnologia que desejam padronizar critérios de avaliação de repositórios e portfólios.
+
+O score representa sinais observáveis do repositório. Ele não substitui entrevista técnica, contexto de projeto ou avaliação humana.
 
 ## Stack
 
@@ -37,20 +49,26 @@ npm run dev
 
 Abra `http://localhost:3000`.
 
-O token é opcional:
+O token é opcional, mas recomendado em produção para análises de owner:
 
 ```env
 GITHUB_TOKEN=
 ```
 
-Sem token, a API pública do GitHub possui limite menor de requisições. O token nunca é enviado ao browser.
+O token é utilizado somente no servidor e nunca é enviado ao browser.
 
 ## Endpoints
 
 ```text
 GET /api/health
-GET /api/analyze?repo=leoo1992/pulsebi
+GET /api/analyze?repo=leoo1992/pulsebi&mode=repository
+GET /api/analyze?repo=next.js&mode=project
+GET /api/owner-quality?owner=leoo1992&offset=0&limit=6
 ```
+
+## Estratégia comercial
+
+Veja [docs/COMMERCIALIZATION.md](docs/COMMERCIALIZATION.md).
 
 ## Arquitetura
 
