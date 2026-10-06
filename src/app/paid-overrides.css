@@ -43,25 +43,6 @@
   display: flex;
 }
 
-.account-floating-link {
-  position: fixed;
-  top: 18px;
-  right: 184px;
-  z-index: 30;
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 11px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: rgba(14,19,32,.92);
-  color: var(--text);
-  font-size: 9px;
-  font-weight: 800;
-  text-decoration: none;
-  backdrop-filter: blur(12px);
-}
-
 .criteria-selector {
   margin-top: 10px;
   border: 1px solid var(--border);
@@ -321,10 +302,6 @@
   .criteria-grid {
     grid-template-columns: 1fr;
   }
-
-  .account-floating-link {
-    right: 126px;
-  }
 }
 
 @media (max-width: 520px) {
@@ -338,10 +315,5 @@
 
   .analysis-progress-head {
     align-items: flex-start;
-  }
-
-  .account-floating-link {
-    top: 14px;
-    right: 108px;
   }
 }
