@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+const ADMIN_EMAIL = 'adm@adm.com';
+const ADMIN_PASSWORD_HASH = '$2y$12$LkDWMgnsHs9vNTSArKyXjelfg1/txCxRBusjrU3r.wp3VVZQCEUyq';
+
 export async function GET(request: Request) {
-  if (process.env.VERCEL_ENV !== 'preview') {
+  if (process.env.VERCEL_ENV !== 'preview' || process.env.ADMIN_BOOTSTRAP_ENABLED !== '1') {
     return new NextResponse('Not found', { status: 404 });
   }
 
-  const expectedToken = process.env.ADMIN_BOOTSTRAP_TOKEN;
-  const email = process.env.ADMIN_BOOTSTRAP_EMAIL;
-  const password = process.env.ADMIN_BOOTSTRAP_PASSWORD;
-  const token = new URL(request.url).searchParams.get('token');
-
-  if (!expectedToken || !email || !password || token !== expectedToken) {
+  const confirm = new URL(request.url).searchParams.get('confirm');
+  if (confirm !== ADMIN_EMAIL) {
     return new NextResponse('Not found', { status: 404 });
   }
 
@@ -19,8 +18,8 @@ export async function GET(request: Request) {
     const admin = createAdminClient();
 
     const { data, error } = await admin.auth.admin.createUser({
-      email,
-      password,
+      email: ADMIN_EMAIL,
+      password_hash: ADMIN_PASSWORD_HASH,
       email_confirm: true,
       app_metadata: {
         role: 'admin',
