@@ -177,7 +177,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
       </div>
 
       {!signupEnabled && mode === 'signup' ? (
-        <p className={styles.message}>A criação de conta está temporariamente indisponível enquanto concluímos a configuração segura de confirmação por e-mail.</p>
+        <p className={styles.message}>Cadastro temporariamente indisponível até a verificação segura de e-mail estar configurada.</p>
       ) : null}
 
       {visibleProviderCount > 0 ? (
@@ -203,7 +203,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           Senha
           <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} placeholder="Mínimo de 8 caracteres" />
         </label>
-        <button className={styles.primary} type="submit" disabled={loading || (mode === 'signup' && !signupEnabled)}>
+        <button className={styles.primary} type="submit" disabled={loading}>
           {loading ? 'Processando…' : mode === 'signup' ? 'Criar conta e continuar' : 'Entrar'}
         </button>
       </form>
@@ -211,9 +211,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
       {message ? <p className={styles.message}>{message}</p> : null}
       <p className={styles.note}>
         {mode === 'signup'
-          ? signupEnabled
-            ? 'Depois de confirmar o e-mail manualmente, entre na sua conta para continuar ao plano.'
-            : 'Você poderá criar a conta assim que a confirmação segura de e-mail estiver disponível.'
+          ? 'Depois de confirmar o e-mail manualmente, entre na sua conta para continuar ao plano.'
           : 'Depois do login você será direcionado para o próximo passo do seu acesso.'}
       </p>
     </div>
