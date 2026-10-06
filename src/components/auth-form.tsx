@@ -2,15 +2,15 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import type { AuthProviderAvailability } from '@/lib/auth-providers';
 import { createClient } from '@/lib/supabase/client';
 import styles from './auth-form.module.css';
 
 type AuthMode = 'login' | 'signup';
 type OAuthProvider = 'google' | 'azure';
-type ProviderState = Record<OAuthProvider, boolean>;
 
 type AuthFormProps = {
-  initialProviders?: ProviderState;
+  initialProviders?: AuthProviderAvailability;
 };
 
 const FAILED_PROVIDER_KEY: Record<OAuthProvider, string> = {
@@ -23,7 +23,11 @@ const FAILED_PROVIDER_COOKIE: Record<OAuthProvider, string> = {
   azure: 'reposcope_oauth_azure_failed',
 };
 
-const NO_PROVIDERS: ProviderState = { google: false, azure: false };
+const NO_PROVIDERS: AuthProviderAvailability = {
+  google: false,
+  azure: false,
+  emailConfirmationRequired: false,
+};
 
 export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   const router = useRouter();
@@ -34,7 +38,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [providers, setProviders] = useState<ProviderState>(initialProviders);
+  const [providers, setProviders] = useState<AuthProviderAvailability>(initialProviders);
 
   const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/pricing';
   const failedProvider = searchParams.get('error') === 'oauth' ? searchParams.get('provider') : null;
@@ -58,12 +62,13 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           return;
         }
 
-        const data = (await response.json()) as Partial<ProviderState>;
+        const data = (await response.json()) as Partial<AuthProviderAvailability>;
         if (cancelled) return;
 
         setProviders({
           google: data.google === true && sessionStorage.getItem(FAILED_PROVIDER_KEY.google) !== '1',
           azure: data.azure === true && sessionStorage.getItem(FAILED_PROVIDER_KEY.azure) !== '1',
+          emailConfirmationRequired: data.emailConfirmationRequired === true,
         });
       } catch {
         if (!cancelled) setProviders(NO_PROVIDERS);
@@ -76,6 +81,18 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
     };
   }, [failedProvider]);
 
+  function switchMode(nextMode: AuthMode) {
+    setMessage('');
+    setMode(nextMode);
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextMode === 'login') params.set('mode', 'login');
+    else params.delete('mode');
+
+    const query = params.toString();
+    router.replace(query ? `/login?${query}` : '/login', { scroll: false });
+  }
+
   async function handleCredentials(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -85,7 +102,12 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
       const supabase = createClient();
 
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({
+        if (!providers.emailConfirmationRequired) {
+          setMessage('Cadastro temporariamente indisponível até a confirmação de e-mail estar ativa.');
+          return;
+        }
+
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -93,7 +115,18 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           },
         });
         if (error) throw error;
-        setMessage('Conta criada. Verifique seu e-mail para confirmar o cadastro.');
+
+        // With email confirmation enabled Supabase must not issue a session at signup.
+        // If it does, fail closed and immediately clear it rather than silently accepting
+        // an unverified account.
+        if (data.session) {
+          await supabase.auth.signOut();
+          setMessage('Cadastro não concluído porque a verificação de e-mail está indisponível.');
+          return;
+        }
+
+        setPassword('');
+        setMessage('Conta criada. Verifique seu e-mail para confirmar o cadastro antes de entrar.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -131,13 +164,28 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   }
 
   const visibleProviderCount = Number(providers.google) + Number(providers.azure);
+  const signupEnabled = providers.emailConfirmationRequired;
 
   return (
     <div className={styles.card}>
       <div className={styles.tabs}>
-        <button type="button" className={mode === 'signup' ? styles.active : ''} onClick={() => setMode('signup')}>Criar conta</button>
-        <button type="button" className={mode === 'login' ? styles.active : ''} onClick={() => setMode('login')}>Entrar</button>
+        <button
+          type="button"
+          className={mode === 'signup' ? styles.active : ''}
+          onClick={() => switchMode('signup')}
+          disabled={!signupEnabled}
+          title={signupEnabled ? undefined : 'Cadastro aguardando ativação da confirmação de e-mail'}
+        >
+          Criar conta
+        </button>
+        <button type="button" className={mode === 'login' ? styles.active : ''} onClick={() => switchMode('login')}>
+          Entrar
+        </button>
       </div>
+
+      {!signupEnabled && mode === 'signup' ? (
+        <p className={styles.message}>Cadastro temporariamente indisponível até a confirmação de e-mail estar ativa.</p>
+      ) : null}
 
       {visibleProviderCount > 0 ? (
         <>
@@ -162,13 +210,17 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           Senha
           <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} placeholder="Mínimo de 8 caracteres" />
         </label>
-        <button className={styles.primary} type="submit" disabled={loading}>
+        <button className={styles.primary} type="submit" disabled={loading || (mode === 'signup' && !signupEnabled)}>
           {loading ? 'Processando…' : mode === 'signup' ? 'Criar conta e continuar' : 'Entrar'}
         </button>
       </form>
 
       {message ? <p className={styles.message}>{message}</p> : null}
-      <p className={styles.note}>Depois do login você será direcionado ao pagamento. As avaliações só ficam disponíveis com assinatura ativa.</p>
+      <p className={styles.note}>
+        {mode === 'signup'
+          ? 'Depois de confirmar o e-mail, entre na sua conta para continuar ao plano.'
+          : 'Depois do login você será direcionado para o próximo passo do seu acesso.'}
+      </p>
     </div>
   );
 }
