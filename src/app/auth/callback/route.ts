@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
+  const provider = searchParams.get('provider');
   let next = searchParams.get('next') ?? '/pricing';
 
   if (!next.startsWith('/')) next = '/pricing';
@@ -27,5 +28,9 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=oauth`);
+  const providerQuery = provider === 'google' || provider === 'azure'
+    ? `&provider=${provider}`
+    : '';
+
+  return NextResponse.redirect(`${origin}/login?error=oauth${providerQuery}`);
 }
