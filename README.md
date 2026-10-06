@@ -41,7 +41,7 @@ O score representa somente sinais técnicos observáveis no repositório. Ele n�
 - React 19
 - TypeScript
 - Supabase Auth + Postgres
-- Stripe Billing
+- Stripe Billing + Checkout + Customer Portal
 - GitHub REST API
 - Vercel
 
@@ -74,7 +74,7 @@ Nunca exponha `SUPABASE_SECRET_KEY`, `STRIPE_SECRET_KEY` ou `STRIPE_WEBHOOK_SECR
 
 ## Supabase
 
-O projeto de produção é o `RepoScope` em `sa-east-1`. A tabela `subscriptions` possui RLS e usuários autenticados podem ler apenas a própria assinatura. Escritas são realizadas somente pelo backend usando a chave secreta.
+O projeto de produção é o `RepoScope` em `sa-east-1`, ref `boamqtcyvflgpewomfhj`. A tabela `subscriptions` possui RLS e usuários autenticados podem ler apenas a própria assinatura. Escritas são realizadas somente pelo backend usando a chave secreta.
 
 Em Authentication configure:
 
@@ -94,6 +94,12 @@ https://boamqtcyvflgpewomfhj.supabase.co/auth/v1/callback
 
 O plano comercial é **RepoScope Pro — R$ 9,90/mês**.
 
+No ambiente de teste atual:
+
+- produto: `prod_VOKs3oCOq3dpUM`;
+- preço ativo: `price_1UNYQUIRhSzSv4bjYFj2fz0O`;
+- Customer Portal: `bpc_1UNYXHIRhSzSv4bjX2QzynPr`.
+
 Configure o webhook de produção para:
 
 ```text
@@ -110,7 +116,7 @@ Eventos utilizados:
 - `invoice.paid`;
 - `invoice.payment_failed`.
 
-A rota de retorno do checkout confirma a sessão no servidor antes de encaminhar o usuário ao dashboard. O estado da assinatura também é atualizado por webhook para refletir renovações, cancelamentos e falhas de pagamento.
+A rota de retorno do checkout confirma a sessão no servidor antes de encaminhar o usuário ao dashboard. O estado da assinatura também é atualizado por webhook para refletir renovações, cancelamentos e falhas de pagamento. Usuários pagos podem acessar `/account` e abrir o Customer Portal do Stripe.
 
 ## Endpoints protegidos
 
