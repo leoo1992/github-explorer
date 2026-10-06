@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { AuthProviderAvailability } from '@/lib/auth-providers';
+import { isEmailVerifiedForAccess } from '@/lib/email-verification';
 import { createClient } from '@/lib/supabase/client';
 import styles from './auth-form.module.css';
 
@@ -100,7 +101,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
       if (mode === 'signup') {
         if (!providers.emailConfirmationRequired) {
-          setMessage('Cadastro temporariamente indisponível até a verificação segura de e-mail estar configurada.');
+          setMessage('Cadastro temporariamente indisponível porque a confirmação obrigatória de e-mail não está ativa.');
           return;
         }
 
@@ -116,15 +117,20 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
         if (data.session) {
           await supabase.auth.signOut();
-          setMessage('Cadastro não concluído porque a verificação de e-mail está indisponível.');
-          return;
         }
 
         setPassword('');
-        setMessage('Conta criada. Abra o e-mail e conclua a confirmação manual antes de entrar.');
+        setMessage('Conta criada. Confirme seu e-mail antes de entrar. O acesso permanece bloqueado até a confirmação manual.');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+
+        if (!data.user || !isEmailVerifiedForAccess(data.user)) {
+          await supabase.auth.signOut();
+          setMessage('Confirme seu e-mail antes de entrar. O acesso ainda não foi liberado.');
+          return;
+        }
+
         router.push(next);
         router.refresh();
       }
@@ -177,7 +183,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
       </div>
 
       {!signupEnabled && mode === 'signup' ? (
-        <p className={styles.message}>Cadastro temporariamente indisponível até a verificação segura de e-mail estar configurada.</p>
+        <p className={styles.message}>Cadastro temporariamente indisponível porque a confirmação obrigatória de e-mail não está ativa.</p>
       ) : null}
 
       {visibleProviderCount > 0 ? (
@@ -211,7 +217,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
       {message ? <p className={styles.message}>{message}</p> : null}
       <p className={styles.note}>
         {mode === 'signup'
-          ? 'Depois de confirmar o e-mail manualmente, entre na sua conta para continuar ao plano.'
+          ? 'Somente a confirmação manual do e-mail libera o login por senha.'
           : 'Depois do login você será direcionado para o próximo passo do seu acesso.'}
       </p>
     </div>
