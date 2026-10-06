@@ -5,7 +5,7 @@ RepoScope transforma repositórios públicos do GitHub em sinais observáveis de
 ## Fluxo comercial
 
 1. visitante acessa a landing pública e vê uma demonstração fictícia da avaliação;
-2. cria uma conta com e-mail/senha, Google ou Microsoft;
+2. cria uma conta com e-mail e senha; Google e Microsoft aparecem somente quando o respectivo OAuth está disponível;
 3. é direcionado para a página do plano;
 4. realiza a assinatura mensal de **R$ 9,90** pelo Stripe;
 5. somente após a confirmação do pagamento o dashboard e as APIs de análise são liberados.
@@ -78,11 +78,13 @@ O projeto de produção é o `RepoScope` em `sa-east-1`, ref `boamqtcyvflgpewomf
 
 Em Authentication configure:
 
-- Email/Password;
-- Google OAuth;
-- Microsoft/Azure OAuth;
+- Email/Password como método base;
+- Google OAuth opcional;
+- Microsoft/Azure OAuth opcional;
 - URL de produção como Site URL;
 - `/auth/callback` entre as Redirect URLs permitidas.
+
+A UI consulta `/auth/v1/settings` e usa fallback fail-closed: Google e Microsoft só são anunciados e exibidos quando o Supabase informa o provedor como habilitado. Se a consulta falhar ou uma tentativa OAuth falhar, o método é ocultado e o sistema mantém e-mail/senha como fallback.
 
 Callback dos provedores sociais no Supabase:
 
@@ -139,4 +141,5 @@ Sem sessão autenticada retornam `401`. Sem assinatura ativa retornam `402`.
 - APIs de análise protegidas no servidor por autenticação e assinatura ativa;
 - assinatura sincronizada pelo webhook Stripe com validação de assinatura criptográfica;
 - tabela de assinatura protegida por RLS;
+- métodos OAuth seguem fallback fail-closed e nunca são anunciados quando indisponíveis;
 - nenhuma chave secreta é enviada ao navegador.
