@@ -28,7 +28,8 @@ const NO_PROVIDERS: ProviderState = { google: false, azure: false };
 export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<AuthMode>('signup');
+  const requestedMode: AuthMode = searchParams.get('mode') === 'login' ? 'login' : 'signup';
+  const [mode, setMode] = useState<AuthMode>(requestedMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,10 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
   const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/pricing';
   const failedProvider = searchParams.get('error') === 'oauth' ? searchParams.get('provider') : null;
+
+  useEffect(() => {
+    setMode(requestedMode);
+  }, [requestedMode]);
 
   useEffect(() => {
     let cancelled = false;
