@@ -36,7 +36,9 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(
+    searchParams.get('confirmed') === '1' ? 'E-mail confirmado. Entre com sua senha para continuar.' : '',
+  );
   const [providers, setProviders] = useState<AuthProviderAvailability>(initialProviders);
 
   const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/pricing';
@@ -80,6 +82,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
     setMessage('');
 
     const params = new URLSearchParams(searchParams.toString());
+    params.delete('confirmed');
     if (nextMode === 'login') params.set('mode', 'login');
     else params.delete('mode');
 
@@ -97,15 +100,16 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
       if (mode === 'signup') {
         if (!providers.emailConfirmationRequired) {
-          setMessage('Cadastro temporariamente indisponível até a confirmação de e-mail estar ativa.');
+          setMessage('Cadastro temporariamente indisponível até a verificação segura de e-mail estar configurada.');
           return;
         }
 
+        const confirmationPage = `${window.location.origin}/confirm-signup?next=${encodeURIComponent(next)}`;
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+            emailRedirectTo: confirmationPage,
           },
         });
         if (error) throw error;
@@ -117,7 +121,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
         }
 
         setPassword('');
-        setMessage('Conta criada. Verifique seu e-mail para confirmar o cadastro antes de entrar.');
+        setMessage('Conta criada. Abra o e-mail e conclua a confirmação manual antes de entrar.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -165,7 +169,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           className={mode === 'signup' ? styles.active : ''}
           onClick={() => switchMode('signup')}
           disabled={!signupEnabled}
-          title={signupEnabled ? undefined : 'Cadastro aguardando ativação da confirmação de e-mail'}
+          title={signupEnabled ? undefined : 'Cadastro aguardando configuração da verificação segura de e-mail'}
         >
           Criar conta
         </button>
@@ -175,7 +179,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
       </div>
 
       {!signupEnabled && mode === 'signup' ? (
-        <p className={styles.message}>Cadastro temporariamente indisponível até a confirmação de e-mail estar ativa.</p>
+        <p className={styles.message}>Cadastro temporariamente indisponível até a verificação segura de e-mail estar configurada.</p>
       ) : null}
 
       {visibleProviderCount > 0 ? (
@@ -209,7 +213,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
       {message ? <p className={styles.message}>{message}</p> : null}
       <p className={styles.note}>
         {mode === 'signup'
-          ? 'Depois de confirmar o e-mail, entre na sua conta para continuar ao plano.'
+          ? 'Depois de confirmar o e-mail manualmente, entre na sua conta para continuar ao plano.'
           : 'Depois do login você será direcionado para o próximo passo do seu acesso.'}
       </p>
     </div>
