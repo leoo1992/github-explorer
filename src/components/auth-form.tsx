@@ -9,12 +9,23 @@ type AuthMode = 'login' | 'signup';
 type OAuthProvider = 'google' | 'azure';
 type ProviderState = Record<OAuthProvider, boolean>;
 
+type AuthFormProps = {
+  initialProviders?: ProviderState;
+};
+
 const FAILED_PROVIDER_KEY: Record<OAuthProvider, string> = {
   google: 'reposcope.oauth.google.failed',
   azure: 'reposcope.oauth.azure.failed',
 };
 
-export function AuthForm() {
+const FAILED_PROVIDER_COOKIE: Record<OAuthProvider, string> = {
+  google: 'reposcope_oauth_google_failed',
+  azure: 'reposcope_oauth_azure_failed',
+};
+
+const NO_PROVIDERS: ProviderState = { google: false, azure: false };
+
+export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<AuthMode>('signup');
@@ -22,7 +33,7 @@ export function AuthForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [providers, setProviders] = useState<ProviderState>({ google: false, azure: false });
+  const [providers, setProviders] = useState<ProviderState>(initialProviders);
 
   const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/pricing';
   const failedProvider = searchParams.get('error') === 'oauth' ? searchParams.get('provider') : null;
@@ -37,7 +48,10 @@ export function AuthForm() {
     async function loadProviders() {
       try {
         const response = await fetch('/api/auth/providers', { cache: 'no-store' });
-        if (!response.ok) return;
+        if (!response.ok) {
+          if (!cancelled) setProviders(NO_PROVIDERS);
+          return;
+        }
 
         const data = (await response.json()) as Partial<ProviderState>;
         if (cancelled) return;
@@ -47,7 +61,7 @@ export function AuthForm() {
           azure: data.azure === true && sessionStorage.getItem(FAILED_PROVIDER_KEY.azure) !== '1',
         });
       } catch {
-        if (!cancelled) setProviders({ google: false, azure: false });
+        if (!cancelled) setProviders(NO_PROVIDERS);
       }
     }
 
@@ -104,8 +118,9 @@ export function AuthForm() {
       if (error) throw error;
     } catch (error) {
       sessionStorage.setItem(FAILED_PROVIDER_KEY[provider], '1');
+      document.cookie = `${FAILED_PROVIDER_COOKIE[provider]}=1; Path=/; Max-Age=600; SameSite=Lax`;
       setProviders((current) => ({ ...current, [provider]: false }));
-      setMessage(error instanceof Error ? error.message : 'Não foi possível abrir o provedor de login.');
+      setMessage('Este método de login está indisponível no momento. Use e-mail e senha.');
       setLoading(false);
     }
   }
