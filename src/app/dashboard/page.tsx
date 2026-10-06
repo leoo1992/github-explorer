@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Explorer } from '@/components/explorer';
 import { getAccessState } from '@/lib/access';
@@ -11,10 +10,5 @@ export default async function DashboardPage() {
   if (!access.user) redirect('/login?next=/dashboard');
   if (!access.paid) redirect('/pricing');
 
-  return (
-    <>
-      <Link href="/account" className="account-floating-link">Conta</Link>
-      <Explorer />
-    </>
-  );
+  return <Explorer />;
 }
