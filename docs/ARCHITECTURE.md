@@ -32,7 +32,9 @@ Browser
                        └─ Analyzer Engine
                             ├─ stack detection
                             ├─ architecture layers
+                            ├─ critérios configuráveis
                             ├─ quality signals
+                            ├─ fila de reprocessamento
                             └─ dependency inventory
 ```
 
@@ -80,8 +82,24 @@ A apresentação dos métodos é **fail-closed**:
 
 - O `GITHUB_TOKEN` fica somente no servidor.
 - O produto analisa repositórios públicos.
+- O usuário escolhe quais critérios entram no cálculo; critérios desmarcados não entram no denominador e não são tratados como falha.
+- Há presets de cenário e seleção individual dos sinais.
 - O score é heurístico e sempre deve ser apresentado com suas evidências.
 - Scores de repositórios não representam competência profissional nem podem ser usados como decisão automática de contratação.
+
+## Processamento resiliente
+
+A análise de owner/organização usa lotes pequenos e concorrência limitada. Cada repositório tem resultado independente: uma indisponibilidade temporária não invalida o restante do lote.
+
+- resultados já validados são preservados;
+- itens temporariamente indisponíveis entram em uma fila de pendências;
+- a fila é reprocessada automaticamente;
+- a interface acompanha quantidade validada, total e percentual;
+- durante a execução, a média é explicitamente parcial;
+- a média final só existe quando todas as pendências foram validadas;
+- evidência dinâmica de CI indisponível nunca é convertida automaticamente em sucesso ou reprovação.
+
+As APIs não devolvem detalhes técnicos de falhas externas para a interface. Estados operacionais previsíveis (`waiting`, `not_found` e `input`) orientam a UI. O dashboard mantém mensagens neutras e retoma automaticamente as etapas transitórias.
 
 ## Segurança
 
