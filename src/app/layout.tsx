@@ -4,9 +4,8 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'RepoScope | GitHub Engineering Intelligence',
   description:
-    'Analise repositórios e portfólios públicos do GitHub com sinais de arquitetura, stack, qualidade e maturidade de engenharia para recrutamento e liderança técnica.',
+    'Avalie repositórios e portfólios públicos do GitHub com evidências de arquitetura, stack, qualidade e maturidade de engenharia.',
   applicationName: 'RepoScope',
-  authors: [{ name: 'Leonardo Santos Custódio' }],
   keywords: [
     'GitHub analysis',
     'technical recruiting',
