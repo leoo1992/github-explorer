@@ -15,12 +15,23 @@ Preço: **R$ 9,90 por mês**.
 O fluxo atual é paid-only:
 
 1. visitante acessa a landing pública e vê uma demonstração com dados fictícios;
-2. cria conta por e-mail/senha, Google ou Microsoft;
+2. cria conta com e-mail/senha; Google e Microsoft aparecem apenas quando o respectivo OAuth está realmente disponível;
 3. segue para o checkout Stripe;
 4. a assinatura é confirmada no servidor e sincronizada por webhook;
-5. somente usuários com assinatura `active` ou `trialing` acessam o dashboard e os endpoints de análise.
+5. somente usuários com assinatura `active` ou `trialing` ou acesso administrativo interno acessam o dashboard e os endpoints de análise.
 
-Não existe análise gratuita no fluxo atual.
+Não existe análise gratuita no fluxo comercial atual.
+
+## Regra de comunicação dos métodos de login
+
+O sistema não deve anunciar um método de login que não esteja utilizável naquele momento.
+
+- e-mail e senha são sempre o fallback base;
+- Google só aparece quando o Supabase reporta o provedor como habilitado;
+- Microsoft só aparece quando o Supabase reporta Azure como habilitado;
+- falhas de consulta ocultam os provedores sociais;
+- uma falha OAuth conhecida também oculta temporariamente o provedor em landing e login;
+- textos comerciais da aplicação devem consumir a mesma disponibilidade usada pelos botões de autenticação.
 
 ## Entregas do plano
 
@@ -53,7 +64,7 @@ Para uso em recrutamento:
 
 ## Arquitetura comercial
 
-- **Supabase Auth** — cadastro, login, sessão e OAuth;
+- **Supabase Auth** — cadastro, login, sessão e OAuth opcional;
 - **Supabase Postgres** — estado de assinatura com RLS;
 - **Stripe Billing + Checkout** — cobrança recorrente;
 - **Stripe Customer Portal** — autosserviço pós-venda;
@@ -69,18 +80,19 @@ Para uso em recrutamento:
 - preço antigo de R$ 79/mês desativado;
 - Customer Portal de teste configurado;
 - fluxo de checkout, confirmação, webhooks e portal implementado no código;
+- disponibilidade de OAuth centralizada e com fallback fail-closed;
 - CI exige typecheck, lint, testes, cobertura mínima de 80% e build.
 
 ## Dependências externas para produção
 
-- credenciais Google OAuth;
-- credenciais Microsoft Entra ID OAuth;
-- habilitação dos provedores sociais no Supabase Auth;
+- credenciais Google OAuth, caso Google seja habilitado;
+- credenciais Microsoft Entra ID OAuth, caso Microsoft seja habilitado;
 - secret key do Supabase configurada no ambiente server-side;
 - Stripe em live mode com produto/preço live de R$ 9,90/mês;
 - restricted/secret Stripe key e webhook signing secret no ambiente server-side;
-- configuração das variáveis no projeto Vercel com acesso ao scope correto;
 - Site URL e Redirect URLs de produção no Supabase Auth.
+
+A ausência de Google ou Microsoft **não bloqueia o lançamento**: o produto continua funcional por e-mail e senha e não anuncia os provedores indisponíveis.
 
 ## Próximas evoluções de produto
 
