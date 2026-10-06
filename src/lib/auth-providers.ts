@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 export type AuthProviderAvailability = {
   google: boolean;
   azure: boolean;
+  emailConfirmationRequired: boolean;
 };
 
 type ProviderSettings = {
@@ -10,10 +11,15 @@ type ProviderSettings = {
     google?: boolean;
     azure?: boolean;
   };
+  mailer_autoconfirm?: boolean;
 };
 
-const NONE: AuthProviderAvailability = { google: false, azure: false };
-const FAILURE_COOKIE: Record<keyof AuthProviderAvailability, string> = {
+const NONE: AuthProviderAvailability = {
+  google: false,
+  azure: false,
+  emailConfirmationRequired: false,
+};
+const FAILURE_COOKIE: Record<'google' | 'azure', string> = {
   google: 'reposcope_oauth_google_failed',
   azure: 'reposcope_oauth_azure_failed',
 };
@@ -48,6 +54,10 @@ export async function getAuthProviderAvailability(): Promise<AuthProviderAvailab
       azure:
         settings.external?.azure === true &&
         cookieStore.get(FAILURE_COOKIE.azure)?.value !== '1',
+      // Supabase calls the inverse setting `mailer_autoconfirm`.
+      // Fail closed: signup is considered safe only when the API explicitly
+      // confirms that automatic email confirmation is disabled.
+      emailConfirmationRequired: settings.mailer_autoconfirm === false,
     };
   } catch {
     return NONE;
