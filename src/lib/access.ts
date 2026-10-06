@@ -1,4 +1,5 @@
 import type { User } from '@supabase/supabase-js';
+import { isEmailVerifiedForAccess } from '@/lib/email-verification';
 import { createClient } from '@/lib/supabase/server';
 
 export type SubscriptionState = {
@@ -20,7 +21,7 @@ export async function getAccessState(): Promise<AccessState> {
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
-  if (userError || !userData.user) {
+  if (userError || !userData.user || !isEmailVerifiedForAccess(userData.user)) {
     return { user: null, paid: false, admin: false, subscription: null };
   }
 
