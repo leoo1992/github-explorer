@@ -48,8 +48,18 @@ export async function POST(request: Request) {
     const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
 
     switch (event.type) {
-      case 'checkout.session.completed':
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        // Delayed payment methods can emit completed while still unpaid.
+        // Do not synchronize/grant access until payment is settled.
+        if (session.payment_status !== 'unpaid') {
+          await syncCheckoutSession(stripe, session);
+        }
+        break;
+      }
+
       case 'checkout.session.async_payment_succeeded':
+      case 'checkout.session.async_payment_failed':
         await syncCheckoutSession(stripe, event.data.object as Stripe.Checkout.Session);
         break;
 
