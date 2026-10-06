@@ -1,11 +1,18 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import styles from './auth-form.module.css';
 
 type AuthMode = 'login' | 'signup';
+type OAuthProvider = 'google' | 'azure';
+type ProviderState = Record<OAuthProvider, boolean>;
+
+const FAILED_PROVIDER_KEY: Record<OAuthProvider, string> = {
+  google: 'reposcope.oauth.google.failed',
+  azure: 'reposcope.oauth.azure.failed',
+};
 
 export function AuthForm() {
   const router = useRouter();
@@ -15,8 +22,40 @@ export function AuthForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [providers, setProviders] = useState<ProviderState>({ google: false, azure: false });
 
   const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/pricing';
+  const failedProvider = searchParams.get('error') === 'oauth' ? searchParams.get('provider') : null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (failedProvider === 'google' || failedProvider === 'azure') {
+      sessionStorage.setItem(FAILED_PROVIDER_KEY[failedProvider], '1');
+    }
+
+    async function loadProviders() {
+      try {
+        const response = await fetch('/api/auth/providers', { cache: 'no-store' });
+        if (!response.ok) return;
+
+        const data = (await response.json()) as Partial<ProviderState>;
+        if (cancelled) return;
+
+        setProviders({
+          google: data.google === true && sessionStorage.getItem(FAILED_PROVIDER_KEY.google) !== '1',
+          azure: data.azure === true && sessionStorage.getItem(FAILED_PROVIDER_KEY.azure) !== '1',
+        });
+      } catch {
+        if (!cancelled) setProviders({ google: false, azure: false });
+      }
+    }
+
+    void loadProviders();
+    return () => {
+      cancelled = true;
+    };
+  }, [failedProvider]);
 
   async function handleCredentials(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,7 +88,7 @@ export function AuthForm() {
     }
   }
 
-  async function handleOAuth(provider: 'google' | 'azure') {
+  async function handleOAuth(provider: OAuthProvider) {
     setLoading(true);
     setMessage('');
 
@@ -58,16 +97,20 @@ export function AuthForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}&provider=${provider}`,
           ...(provider === 'azure' ? { scopes: 'email' } : {}),
         },
       });
       if (error) throw error;
     } catch (error) {
+      sessionStorage.setItem(FAILED_PROVIDER_KEY[provider], '1');
+      setProviders((current) => ({ ...current, [provider]: false }));
       setMessage(error instanceof Error ? error.message : 'Não foi possível abrir o provedor de login.');
       setLoading(false);
     }
   }
+
+  const visibleProviderCount = Number(providers.google) + Number(providers.azure);
 
   return (
     <div className={styles.card}>
@@ -76,12 +119,19 @@ export function AuthForm() {
         <button type="button" className={mode === 'login' ? styles.active : ''} onClick={() => setMode('login')}>Entrar</button>
       </div>
 
-      <div className={styles.socialGrid}>
-        <button type="button" onClick={() => void handleOAuth('google')} disabled={loading}><span>G</span> Continuar com Google</button>
-        <button type="button" onClick={() => void handleOAuth('azure')} disabled={loading}><span>M</span> Continuar com Microsoft</button>
-      </div>
-
-      <div className={styles.divider}><span>ou use e-mail e senha</span></div>
+      {visibleProviderCount > 0 ? (
+        <>
+          <div className={`${styles.socialGrid} ${visibleProviderCount === 1 ? styles.singleProvider : ''}`}>
+            {providers.google ? (
+              <button type="button" onClick={() => void handleOAuth('google')} disabled={loading}><span>G</span> Continuar com Google</button>
+            ) : null}
+            {providers.azure ? (
+              <button type="button" onClick={() => void handleOAuth('azure')} disabled={loading}><span>M</span> Continuar com Microsoft</button>
+            ) : null}
+          </div>
+          <div className={styles.divider}><span>ou use e-mail e senha</span></div>
+        </>
+      ) : null}
 
       <form onSubmit={handleCredentials} className={styles.form}>
         <label>
