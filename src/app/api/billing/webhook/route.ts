@@ -4,6 +4,36 @@ import { createStripeClient } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
 
+function invoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const legacyInvoice = invoice as Stripe.Invoice & {
+    subscription?: string | Stripe.Subscription | null;
+  };
+
+  const legacyId = stripeId(legacyInvoice.subscription ?? null);
+  if (legacyId) return legacyId;
+
+  const subscription = invoice.parent?.subscription_details?.subscription ?? null;
+  return stripeId(subscription);
+}
+
+async function syncCheckoutSession(stripe: Stripe, session: Stripe.Checkout.Session) {
+  const subscriptionId = stripeId(session.subscription);
+  const userId = session.metadata?.supabase_user_id ?? session.client_reference_id;
+
+  if (!subscriptionId) return;
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  await syncSubscription(subscription, userId);
+}
+
+async function syncInvoiceSubscription(stripe: Stripe, invoice: Stripe.Invoice) {
+  const subscriptionId = invoiceSubscriptionId(invoice);
+  if (!subscriptionId) return;
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  await syncSubscription(subscription);
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get('stripe-signature');
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -17,22 +47,25 @@ export async function POST(request: Request) {
     const payload = await request.text();
     const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const subscriptionId = stripeId(session.subscription);
-      const userId = session.metadata?.supabase_user_id ?? session.client_reference_id;
-      if (subscriptionId) {
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        await syncSubscription(subscription, userId);
-      }
-    }
+    switch (event.type) {
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded':
+        await syncCheckoutSession(stripe, event.data.object as Stripe.Checkout.Session);
+        break;
 
-    if (
-      event.type === 'customer.subscription.created' ||
-      event.type === 'customer.subscription.updated' ||
-      event.type === 'customer.subscription.deleted'
-    ) {
-      await syncSubscription(event.data.object as Stripe.Subscription);
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        await syncSubscription(event.data.object as Stripe.Subscription);
+        break;
+
+      case 'invoice.paid':
+      case 'invoice.payment_failed':
+        await syncInvoiceSubscription(stripe, event.data.object as Stripe.Invoice);
+        break;
+
+      default:
+        break;
     }
 
     return Response.json({ received: true });
