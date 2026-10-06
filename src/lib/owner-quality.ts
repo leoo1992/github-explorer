@@ -1,4 +1,5 @@
 import { analyzeQualitySignals } from '@/lib/quality-analyzer';
+import { qualityCriterionLabels, sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
 import type { OwnerQualitySummary, TreeEntry } from '@/types/repository';
 
 interface GitHubRepositoryListItem {
@@ -18,37 +19,70 @@ interface GitHubTree {
   }>;
 }
 
+class GitHubRequestError extends Error {
+  status: number;
+  retryAfterMs: number;
+  retryable: boolean;
+
+  constructor(message: string, status: number, retryAfterMs = 0, retryable = false) {
+    super(message);
+    this.name = 'GitHubRequestError';
+    this.status = status;
+    this.retryAfterMs = retryAfterMs;
+    this.retryable = retryable;
+  }
+}
+
 function buildHeaders() {
   const headers: HeadersInit = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'github-architecture-explorer',
+    'User-Agent': 'reposcope',
   };
   const token = process.env.GITHUB_TOKEN?.trim();
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 
+function retryAfterMs(response: Response) {
+  const retryAfter = response.headers.get('retry-after');
+  if (retryAfter) {
+    const seconds = Number.parseInt(retryAfter, 10);
+    if (Number.isFinite(seconds)) return Math.max(1_000, seconds * 1_000);
+  }
+
+  const reset = response.headers.get('x-ratelimit-reset');
+  if (reset) {
+    const epochSeconds = Number.parseInt(reset, 10);
+    if (Number.isFinite(epochSeconds)) {
+      return Math.max(1_000, epochSeconds * 1_000 - Date.now() + 1_500);
+    }
+  }
+
+  return 2_500;
+}
+
+function responseError(response: Response, context: string) {
+  const retryable = response.status === 403 || response.status === 429 || response.status >= 500;
+  return new GitHubRequestError(
+    `${context} · HTTP ${response.status}`,
+    response.status,
+    retryable ? retryAfterMs(response) : 0,
+    retryable,
+  );
+}
+
 async function githubJson<T>(url: string, headers: HeadersInit): Promise<T> {
   const response = await fetch(url, {
     headers,
-    next: { revalidate: 3600 },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (response.status === 404) {
-    throw new Error('Usuário do GitHub não encontrado.');
+    throw new GitHubRequestError('Recurso público não encontrado no GitHub.', 404, 0, false);
   }
-
-  if (response.status === 403) {
-    throw new Error(
-      'Limite da API do GitHub atingido. Configure GITHUB_TOKEN para calcular a média de todos os repositórios do usuário.',
-    );
-  }
-
-  if (!response.ok) {
-    throw new Error(`GitHub respondeu com HTTP ${response.status}.`);
-  }
-
+  if (!response.ok) throw responseError(response, 'GitHub indisponível para esta etapa');
   return (await response.json()) as T;
 }
 
@@ -67,25 +101,18 @@ async function listOwnerRepositories(owner: string, headers: HeadersInit) {
   return repositories;
 }
 
-async function repositoryTree(
-  repository: GitHubRepositoryListItem,
-  headers: HeadersInit,
-): Promise<TreeEntry[]> {
+async function repositoryTree(repository: GitHubRepositoryListItem, headers: HeadersInit): Promise<TreeEntry[]> {
   const url =
     `https://api.github.com/repos/${repository.full_name}/git/trees/` +
     `${encodeURIComponent(repository.default_branch)}?recursive=1`;
   const response = await fetch(url, {
     headers,
-    next: { revalidate: 3600 },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (response.status === 409 || response.status === 404) return [];
-  if (response.status === 403) {
-    throw new Error('Limite da API do GitHub atingido durante a análise dos repositórios.');
-  }
-  if (!response.ok) {
-    throw new Error(`GitHub respondeu com HTTP ${response.status} em ${repository.full_name}.`);
-  }
+  if (!response.ok) throw responseError(response, `Árvore de ${repository.full_name} temporariamente indisponível`);
 
   const data = (await response.json()) as GitHubTree;
   return data.tree
@@ -97,10 +124,12 @@ async function repositoryTree(
     }));
 }
 
-function scoreSignals(signals: Array<{ found: boolean }>) {
-  if (!signals.length) return 0;
-  const passed = signals.filter((signal) => signal.found).length;
-  return Math.round((passed / signals.length) * 100);
+function scoreSignals(signals: Array<{ label: string; found: boolean }>, criterionIds: string[]) {
+  const labels = qualityCriterionLabels(criterionIds);
+  const selected = signals.filter((signal) => labels.has(signal.label));
+  if (!selected.length) return 0;
+  const passed = selected.filter((signal) => signal.found).length;
+  return Math.round((passed / selected.length) * 100);
 }
 
 function delay(ms: number) {
@@ -110,10 +139,11 @@ function delay(ms: number) {
 async function scoreRepository(
   repository: GitHubRepositoryListItem,
   headers: HeadersInit,
+  criterionIds: string[],
 ) {
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
       const tree = await repositoryTree(repository, headers);
       const { signals } = await analyzeQualitySignals({
@@ -124,24 +154,19 @@ async function scoreRepository(
         dependencies: [],
         repositoryLicense: repository.license,
       });
-
-      return scoreSignals(signals);
+      return scoreSignals(signals, criterionIds);
     } catch (error) {
       lastError = error;
-      if (attempt < 2) await delay(400 * 2 ** attempt);
+      const wait = error instanceof GitHubRequestError ? error.retryAfterMs : 750 * 2 ** attempt;
+      if (error instanceof GitHubRequestError && (!error.retryable || wait > 8_000)) break;
+      if (attempt < 3) await delay(Math.min(Math.max(wait, 500), 8_000));
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(`Falha ao analisar ${repository.full_name}.`);
+  throw lastError instanceof Error ? lastError : new Error('Etapa de análise temporariamente indisponível.');
 }
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<R>,
-) {
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>) {
   const results: Array<PromiseSettledResult<R> | undefined> = new Array(items.length);
   let cursor = 0;
 
@@ -157,82 +182,109 @@ async function mapWithConcurrency<T, R>(
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, () => run()),
-  );
-
-  return results.filter(
-    (result): result is PromiseSettledResult<R> => result !== undefined,
-  );
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => run()));
+  return results.filter((result): result is PromiseSettledResult<R> => result !== undefined);
 }
 
-export async function analyzeOwnerQualityBatch(owner: string, offset: number, limit: number) {
-  if (!/^[A-Za-z0-9_.-]+$/.test(owner)) throw new Error('Usuário do GitHub inválido.');
+function retryDelayFromSettled(results: PromiseSettledResult<number>[]) {
+  const delays = results.flatMap((result) => {
+    if (result.status === 'fulfilled') return [];
+    const reason = result.reason;
+    return reason instanceof GitHubRequestError && reason.retryable ? [reason.retryAfterMs] : [2_500];
+  });
+  return delays.length ? Math.min(Math.max(...delays), 60 * 60 * 1_000) : 0;
+}
 
+export async function analyzeOwnerQualityBatch(
+  owner: string,
+  offset: number,
+  limit: number,
+  requestedCriterionIds?: string[],
+) {
+  if (!/^[A-Za-z0-9_.-]+$/.test(owner)) throw new Error('Owner inválido.');
+
+  const criterionIds = sanitizeQualityCriteriaIds(requestedCriterionIds);
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
   const safeOffset = Math.max(0, Math.min(offset, repositories.length));
-  const safeLimit = Math.max(1, Math.min(limit, 20));
+  const safeLimit = Math.max(1, Math.min(limit, 12));
   const batch = repositories.slice(safeOffset, safeOffset + safeLimit);
-  const settled = await mapWithConcurrency(batch, 4, (repository) =>
-    scoreRepository(repository, headers),
+  const settled = await mapWithConcurrency(batch, 3, (repository) =>
+    scoreRepository(repository, headers, criterionIds),
   );
+
   const scored = settled.flatMap((result, index) =>
     result.status === 'fulfilled'
-      ? [{ name: batch[index]!.name, score: result.value }]
+      ? [{ name: batch[index]!.name, score: result.value, offset: safeOffset + index }]
       : [],
   );
-  const scores = scored.map((item) => item.score);
+  const pendingOffsets = settled.flatMap((result, index) =>
+    result.status === 'rejected' ? [safeOffset + index] : [],
+  );
+  const nextOffset = safeOffset + batch.length;
 
-  if (scores.length !== batch.length) {
-    throw new Error(`Falha no lote ${safeOffset + 1}-${safeOffset + batch.length}. Nenhuma média parcial será usada.`);
+  if (pendingOffsets.length) {
+    console.warn('[owner-quality] deferred repositories', {
+      owner,
+      pendingOffsets,
+      retryAfterMs: retryDelayFromSettled(settled),
+    });
   }
 
   return {
     owner,
     totalRepositories: repositories.length,
     offset: safeOffset,
-    processed: scores.length,
-    scores,
+    attempted: batch.length,
+    successful: scored.length,
+    scores: scored.map((item) => item.score),
     repositories: scored,
-    nextOffset: safeOffset + scores.length,
-    complete: safeOffset + scores.length >= repositories.length,
+    pendingOffsets,
+    retryAfterMs: retryDelayFromSettled(settled),
+    nextOffset,
+    scanComplete: nextOffset >= repositories.length,
+    complete: nextOffset >= repositories.length && pendingOffsets.length === 0,
+    criteria: criterionIds,
   };
 }
 
-export async function analyzeOwnerQuality(owner: string): Promise<OwnerQualitySummary> {
-  if (!/^[A-Za-z0-9_.-]+$/.test(owner)) {
-    throw new Error('Usuário do GitHub inválido.');
-  }
+export async function analyzeOwnerQuality(
+  owner: string,
+  requestedCriterionIds?: string[],
+): Promise<OwnerQualitySummary> {
+  if (!/^[A-Za-z0-9_.-]+$/.test(owner)) throw new Error('Owner inválido.');
 
+  const criterionIds = sanitizeQualityCriteriaIds(requestedCriterionIds);
   const headers = buildHeaders();
   const repositories = await listOwnerRepositories(owner, headers);
-  const settled = await mapWithConcurrency(repositories, 5, (repository) =>
-    scoreRepository(repository, headers),
+  const settled = await mapWithConcurrency(repositories, 3, (repository) =>
+    scoreRepository(repository, headers, criterionIds),
   );
-
   const scoredRepositories = settled.flatMap((result, index) =>
     result.status === 'fulfilled'
       ? [{ name: repositories[index]!.name, score: result.value }]
       : [],
   );
+  const complete = scoredRepositories.length === repositories.length;
   const scores = scoredRepositories.map((item) => item.score);
-  if (scores.length !== repositories.length) {
-    throw new Error(
-      `Análise do owner incompleta: ${scores.length}/${repositories.length} repositórios. A média parcial não será exibida.`,
-    );
-  }
-
-  const average = scores.length
+  const average = complete && scores.length
     ? Math.round(scores.reduce((total, score) => total + score, 0) / scores.length)
     : null;
+
+  if (!complete) {
+    console.warn('[owner-quality] full analysis deferred', {
+      owner,
+      analyzed: scoredRepositories.length,
+      total: repositories.length,
+    });
+  }
 
   return {
     owner,
     average,
     totalRepositories: repositories.length,
-    analyzedRepositories: scores.length,
-    complete: true,
+    analyzedRepositories: scoredRepositories.length,
+    complete,
     scope: 'public',
     analyzedAt: new Date().toISOString(),
     repositories: scoredRepositories,
