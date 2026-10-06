@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function PricingPage() {
   const access = await getAccessState();
-  if (!access.user) redirect('/login?next=/pricing');
+  if (!access.user) redirect('/login?mode=login&next=/pricing');
   if (access.paid) redirect('/dashboard');
 
   const priceLabel = process.env.NEXT_PUBLIC_PLAN_PRICE_LABEL ?? 'R$ 9,90/mês';
