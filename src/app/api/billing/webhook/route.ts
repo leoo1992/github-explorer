@@ -1,50 +1,8 @@
 import Stripe from 'stripe';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { stripeId, syncSubscription } from '@/lib/billing';
 import { createStripeClient } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
-
-function idOf(value: string | { id: string } | null) {
-  return typeof value === 'string' ? value : value?.id ?? null;
-}
-
-async function upsertSubscription(subscription: Stripe.Subscription, fallbackUserId?: string | null) {
-  const supabase = createAdminClient();
-  let userId = subscription.metadata.supabase_user_id || fallbackUserId || null;
-
-  if (!userId) {
-    const { data: existing } = await supabase
-      .from('subscriptions')
-      .select('user_id')
-      .eq('stripe_subscription_id', subscription.id)
-      .maybeSingle();
-    userId = existing?.user_id ?? null;
-  }
-
-  if (!userId) {
-    throw new Error(`Assinatura ${subscription.id} sem vínculo com usuário.`);
-  }
-
-  const item = subscription.items.data[0];
-  const currentPeriodEnd = item?.current_period_end
-    ? new Date(item.current_period_end * 1000).toISOString()
-    : null;
-
-  const { error } = await supabase.from('subscriptions').upsert(
-    {
-      user_id: userId,
-      stripe_customer_id: idOf(subscription.customer),
-      stripe_subscription_id: subscription.id,
-      status: subscription.status,
-      price_id: item?.price?.id ?? null,
-      current_period_end: currentPeriodEnd,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id' },
-  );
-
-  if (error) throw new Error(`Falha ao registrar assinatura: ${error.message}`);
-}
 
 export async function POST(request: Request) {
   const signature = request.headers.get('stripe-signature');
@@ -61,16 +19,20 @@ export async function POST(request: Request) {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      const subscriptionId = idOf(session.subscription);
+      const subscriptionId = stripeId(session.subscription);
       const userId = session.metadata?.supabase_user_id ?? session.client_reference_id;
       if (subscriptionId) {
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        await upsertSubscription(subscription, userId);
+        await syncSubscription(subscription, userId);
       }
     }
 
-    if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-      await upsertSubscription(event.data.object as Stripe.Subscription);
+    if (
+      event.type === 'customer.subscription.created' ||
+      event.type === 'customer.subscription.updated' ||
+      event.type === 'customer.subscription.deleted'
+    ) {
+      await syncSubscription(event.data.object as Stripe.Subscription);
     }
 
     return Response.json({ received: true });
