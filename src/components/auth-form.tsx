@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { AuthProviderAvailability } from '@/lib/auth-providers';
@@ -12,6 +13,14 @@ type OAuthProvider = 'google' | 'azure';
 
 type AuthFormProps = {
   initialProviders?: AuthProviderAvailability;
+};
+
+type PasswordFieldProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: 'new-password' | 'current-password';
+  placeholder?: string;
 };
 
 const FAILED_PROVIDER_KEY: Record<OAuthProvider, string> = {
@@ -30,16 +39,65 @@ const NO_PROVIDERS: AuthProviderAvailability = {
   emailConfirmationRequired: false,
 };
 
+function EyeIcon({ visible }: { visible: boolean }) {
+  return visible ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 3l18 18M10.6 10.7a2 2 0 002.7 2.7M9.9 4.3A10.8 10.8 0 0112 4c5.2 0 8.8 4.5 9.7 5.8a3.7 3.7 0 010 4.4 15.8 15.8 0 01-2.5 2.8M6.2 6.2a16.4 16.4 0 00-3.9 3.6 3.7 3.7 0 000 4.4C3.2 15.5 6.8 20 12 20a10.7 10.7 0 005-1.2" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M2.3 9.8C3.2 8.5 6.8 4 12 4s8.8 4.5 9.7 5.8a3.7 3.7 0 010 4.4C20.8 15.5 17.2 20 12 20S3.2 15.5 2.3 14.2a3.7 3.7 0 010-4.4z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function PasswordField({ label, value, onChange, autoComplete, placeholder = 'Mínimo de 8 caracteres' }: PasswordFieldProps) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <label>
+      {label}
+      <span className={styles.passwordField}>
+        <input
+          type={visible ? 'text' : 'password'}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          required
+          minLength={8}
+          placeholder={placeholder}
+        />
+        <button
+          type="button"
+          className={styles.passwordToggle}
+          onClick={() => setVisible((current) => !current)}
+          aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+          title={visible ? 'Ocultar senha' : 'Mostrar senha'}
+        >
+          <EyeIcon visible={visible} />
+        </button>
+      </span>
+    </label>
+  );
+}
+
+function initialMessage(searchParams: ReturnType<typeof useSearchParams>) {
+  if (searchParams.get('confirmed') === '1') return 'E-mail confirmado. Entre com sua senha para continuar.';
+  if (searchParams.get('password_reset') === '1') return 'Senha alterada com sucesso. Entre com sua nova senha.';
+  return '';
+}
+
 export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const mode: AuthMode = searchParams.get('mode') === 'login' ? 'login' : 'signup';
   const [email, setEmail] = useState('');
+  const [emailConfirmation, setEmailConfirmation] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(
-    searchParams.get('confirmed') === '1' ? 'E-mail confirmado. Entre com sua senha para continuar.' : '',
-  );
+  const [message, setMessage] = useState(() => initialMessage(searchParams));
   const [providers, setProviders] = useState<AuthProviderAvailability>(initialProviders);
 
   const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/pricing';
@@ -81,9 +139,13 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
   function switchMode(nextMode: AuthMode) {
     setMessage('');
+    setEmailConfirmation('');
+    setPassword('');
+    setPasswordConfirmation('');
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete('confirmed');
+    params.delete('password_reset');
     if (nextMode === 'login') params.set('mode', 'login');
     else params.delete('mode');
 
@@ -98,6 +160,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
     try {
       const supabase = createClient();
+      const normalizedEmail = email.trim().toLowerCase();
 
       if (mode === 'signup') {
         if (!providers.emailConfirmationRequired) {
@@ -105,9 +168,19 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           return;
         }
 
+        if (normalizedEmail !== emailConfirmation.trim().toLowerCase()) {
+          setMessage('Os e-mails informados não coincidem.');
+          return;
+        }
+
+        if (password !== passwordConfirmation) {
+          setMessage('As senhas informadas não coincidem.');
+          return;
+        }
+
         const confirmationPage = `${window.location.origin}/confirm-signup?next=${encodeURIComponent(next)}`;
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: {
             emailRedirectTo: confirmationPage,
@@ -120,9 +193,10 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
         }
 
         setPassword('');
+        setPasswordConfirmation('');
         setMessage('Conta criada. Confirme seu e-mail antes de entrar. O acesso permanece bloqueado até a confirmação manual.');
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (error) throw error;
 
         if (!data.user || !isEmailVerifiedForAccess(data.user)) {
@@ -205,10 +279,44 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           E-mail
           <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="voce@empresa.com" />
         </label>
-        <label>
-          Senha
-          <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} placeholder="Mínimo de 8 caracteres" />
-        </label>
+
+        {mode === 'signup' ? (
+          <label>
+            Confirmar e-mail
+            <input
+              type="email"
+              autoComplete="email"
+              value={emailConfirmation}
+              onChange={(event) => setEmailConfirmation(event.target.value)}
+              required
+              placeholder="Digite seu e-mail novamente"
+            />
+          </label>
+        ) : null}
+
+        <PasswordField
+          label="Senha"
+          autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+          value={password}
+          onChange={setPassword}
+        />
+
+        {mode === 'signup' ? (
+          <PasswordField
+            label="Confirmar senha"
+            autoComplete="new-password"
+            value={passwordConfirmation}
+            onChange={setPasswordConfirmation}
+            placeholder="Digite sua senha novamente"
+          />
+        ) : null}
+
+        {mode === 'login' ? (
+          <div className={styles.formActions}>
+            <Link href="/forgot-password">Esqueci minha senha</Link>
+          </div>
+        ) : null}
+
         <button className={styles.primary} type="submit" disabled={loading}>
           {loading ? 'Processando…' : mode === 'signup' ? 'Criar conta e continuar' : 'Entrar'}
         </button>
