@@ -71,6 +71,12 @@ export const QUALITY_CRITERIA: QualityCriterion[] = [
   { id: 'sast', label: 'SAST no CI', group: 'Segurança', description: 'CodeQL, Semgrep ou ferramenta equivalente executada no CI.', languages: GLOBAL },
   { id: 'secret-scanning', label: 'Varredura de segredos no CI', group: 'Segurança', description: 'Gitleaks, TruffleHog ou ferramenta equivalente automatizada.', languages: GLOBAL },
   { id: 'dependency-audit', label: 'Auditoria de dependências', group: 'Segurança', description: 'Pipeline executa auditoria de vulnerabilidades em dependências.', languages: GLOBAL },
+  { id: 'codeql', label: 'CodeQL configurado', group: 'Segurança', description: 'CodeQL está configurado em workflow para análise estática.', languages: GLOBAL },
+  { id: 'dependabot', label: 'Dependabot configurado', group: 'Segurança', description: 'Dependabot está configurado para atualizar dependências.', languages: GLOBAL },
+  { id: 'actions-permissions', label: 'Permissões de Actions explícitas', group: 'Segurança', description: 'Workflows declaram permissions e não usam write-all.', languages: GLOBAL },
+  { id: 'signed-commits', label: 'Commits assinados', group: 'Segurança', description: 'Os commits recentes possuem assinatura verificada pelo GitHub.', languages: GLOBAL },
+  { id: 'dependency-vulnerabilities', label: 'Sem advisories/vulnerabilidades abertas', group: 'Segurança', description: 'Não há alertas Dependabot abertos para vulnerabilidades conhecidas quando a API permite a consulta.', languages: GLOBAL },
+  { id: 'secret-indicators', label: 'Sem indicadores de secrets', group: 'Segurança', description: 'Não foram detectados padrões comuns de chaves, tokens ou segredos em arquivos de configuração analisados.', languages: GLOBAL },
   { id: 'contributing', label: 'CONTRIBUTING', group: 'Documentação', description: 'Guia de contribuição presente.', languages: GLOBAL },
   { id: 'changelog', label: 'CHANGELOG', group: 'Documentação', description: 'Histórico de mudanças versionado.', languages: GLOBAL },
   { id: 'pr-template', label: 'Template de Pull Request', group: 'Governança', description: 'Template orienta descrição e validação de mudanças.', languages: GLOBAL },
@@ -116,7 +122,7 @@ export const QUALITY_PRESETS: Record<string, { label: string; ids: string[] }> =
   },
   security: {
     label: 'Segurança',
-    ids: ['no-sensitive-files', 'gitignore', 'security-policy', 'dependency-updates', 'sast', 'secret-scanning', 'dependency-audit'],
+    ids: ['no-sensitive-files', 'gitignore', 'security-policy', 'dependency-updates', 'dependabot', 'sast', 'codeql', 'secret-scanning', 'secret-indicators', 'dependency-audit', 'dependency-vulnerabilities', 'actions-permissions', 'signed-commits'],
   },
   delivery: {
     label: 'CI / Entrega',
@@ -160,6 +166,9 @@ const BASE_ENGINEERING_IDS = [
   'coverage-80',
   'dependency-updates',
   'dependency-audit',
+  'dependabot',
+  'actions-permissions',
+  'secret-indicators',
 ];
 
 const EXTENDED_ENGINEERING_IDS = [
@@ -168,6 +177,9 @@ const EXTENDED_ENGINEERING_IDS = [
   'security-policy',
   'sast',
   'secret-scanning',
+  'codeql',
+  'dependency-vulnerabilities',
+  'signed-commits',
   'integration-tests',
 ];
 
@@ -485,7 +497,7 @@ export function calculateQualityScore(
   languages?: Iterable<string> | null,
 ) {
   const labels = qualityCriterionLabels(ids, languages);
-  const scored = signals.filter((signal) => labels.has(signal.label));
+  const scored = signals.filter((signal) => labels.has(signal.label) && signal.status !== 'unknown');
   if (!scored.length) return { score: 0, passed: 0, total: 0 };
   const passed = scored.filter((signal) => signal.found).length;
   return {

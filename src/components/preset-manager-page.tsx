@@ -1,7 +1,8 @@
 'use client';
 
-import Link from 'next/link';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { AppNavigation } from '@/components/app-navigation';
 import {
   QUALITY_CRITERIA,
   QUALITY_LANGUAGES,
@@ -20,7 +21,7 @@ export type CustomQualityPreset = {
   updatedAt: string;
 };
 
-export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQualityPreset[] }) {
+export function PresetManagerPage({ initialPresets, admin = false }: { initialPresets: CustomQualityPreset[]; admin?: boolean }) {
   const [presets, setPresets] = useState<CustomQualityPreset[]>(initialPresets);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -29,6 +30,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
   const [languageFilter, setLanguageFilter] = useState<'all' | 'global' | QualityLanguage>('all');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [sectionTab, setSectionTab] = useState<'system' | 'mine' | 'editor'>('mine');
 
   const visibleCriteria = useMemo(() => QUALITY_CRITERIA.filter((criterion) => {
     if (languageFilter === 'all') return true;
@@ -38,13 +40,14 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
 
   const groups = [...new Set(visibleCriteria.map((criterion) => criterion.group))];
 
-  function clearEditor() {
+  function clearEditor(openEditor = false) {
     setSelectedId(null);
     setName('');
     setLanguage('');
     setCriteriaIds([]);
     setLanguageFilter('all');
     setMessage('');
+    if (openEditor) setSectionTab('editor');
   }
 
   function editPreset(preset: CustomQualityPreset) {
@@ -54,6 +57,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
     setCriteriaIds([...preset.criteriaIds]);
     setLanguageFilter(preset.language ?? 'all');
     setMessage('');
+    setSectionTab('editor');
   }
 
   function toggleCriterion(id: string) {
@@ -122,7 +126,10 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
         return;
       }
       setPresets((current) => current.filter((preset) => preset.id !== id));
-      if (selectedId === id) clearEditor();
+      if (selectedId === id) {
+        clearEditor();
+        setSectionTab('mine');
+      }
       setMessage('Preset excluído.');
     } catch {
       setMessage('Não foi possível excluir o preset.');
@@ -131,55 +138,86 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
     }
   }
 
+
   return (
-    <main className={styles.page}>
-      <header className={`theme-header ${styles.topbar}`}>
-        <Link href="/dashboard" className={styles.brand}>RepoScope</Link>
-        <nav>
-          <Link className="btn btn-ghost btn-sm" href="/dashboard">Dashboard</Link>
-          <Link className="btn btn-ghost btn-sm" href="/account">Conta</Link>
-        </nav>
-      </header>
+    <main className={[styles.page, 'page-with-dock'].join(' ')}>
+      <AppNavigation admin={admin} presetAccess />
 
       <section className={styles.hero}>
         <div>
           <p>PERFIS DE QUALIDADE</p>
           <h1>Presets de avaliação</h1>
           <span>
-            Os presets padrão definem critérios coerentes por linguagem e stack. Eles fazem parte do sistema
-            e não podem ser excluídos. Seus presets personalizados podem ser criados, editados e removidos.
+            Organize os critérios em abas. Os padrões do sistema são somente leitura; seus presets podem ser
+            criados, editados e excluídos.
           </span>
         </div>
-        <button className="btn btn-primary" type="button" onClick={clearEditor}>Novo preset</button>
+        <button className="btn btn-primary btn-sm" type="button" onClick={() => clearEditor(true)}>
+          Novo preset
+        </button>
       </section>
 
-      <section className={styles.systemSection}>
-        <div className={styles.sectionHead}>
-          <div>
-            <p>PADRÕES DO SISTEMA</p>
-            <h2>Presets padrão não excluíveis</h2>
+      <nav className={['tabs', 'tabs-box', styles.pageTabs].join(' ')} role="tablist" aria-label="Seções de presets">
+        <button
+          className={sectionTab === 'system' ? 'tab tab-active' : 'tab'}
+          type="button"
+          role="tab"
+          aria-selected={sectionTab === 'system'}
+          onClick={() => setSectionTab('system')}
+        >
+          Padrões do sistema
+          <span className="badge badge-sm badge-ghost">{STANDARD_QUALITY_PRESETS.length}</span>
+        </button>
+        <button
+          className={sectionTab === 'mine' ? 'tab tab-active' : 'tab'}
+          type="button"
+          role="tab"
+          aria-selected={sectionTab === 'mine'}
+          onClick={() => setSectionTab('mine')}
+        >
+          Meus presets
+          <span className="badge badge-sm badge-ghost">{presets.length}</span>
+        </button>
+        <button
+          className={sectionTab === 'editor' ? 'tab tab-active' : 'tab'}
+          type="button"
+          role="tab"
+          aria-selected={sectionTab === 'editor'}
+          onClick={() => setSectionTab('editor')}
+        >
+          Editor
+        </button>
+      </nav>
+
+      {sectionTab === 'system' ? (
+        <section className={[styles.systemSection, styles.tabPanel].join(' ')}>
+          <div className={styles.sectionHead}>
+            <div>
+              <p>PADRÕES DO SISTEMA</p>
+              <h2>Presets padrão não excluíveis</h2>
+            </div>
+            <span>{STANDARD_QUALITY_PRESETS.length} presets</span>
           </div>
-          <span>{STANDARD_QUALITY_PRESETS.length} presets</span>
-        </div>
-        <div className={styles.systemGrid}>
-          {STANDARD_QUALITY_PRESETS.map((preset) => (
-            <article className={`card ${styles.systemCard}`} key={preset.id}>
-              <div className={styles.cardTop}>
-                <strong>{preset.label}</strong>
-                <span className="badge badge-soft badge-info">PADRÃO</span>
-              </div>
-              <p>{preset.description}</p>
-              <div className={styles.tags}>
-                {(preset.stacks ?? preset.languages ?? []).map((item) => <span key={item}>{item}</span>)}
-              </div>
-              <small>{preset.ids.length} critérios pré-selecionados</small>
-            </article>
-          ))}
-        </div>
-      </section>
+          <div className={styles.systemGrid}>
+            {STANDARD_QUALITY_PRESETS.map((preset) => (
+              <article className={['card', styles.systemCard].join(' ')} key={preset.id}>
+                <div className={styles.cardTop}>
+                  <strong>{preset.label}</strong>
+                  <span className="badge badge-soft badge-info">PADRÃO</span>
+                </div>
+                <p>{preset.description}</p>
+                <div className={styles.tags}>
+                  {(preset.stacks ?? preset.languages ?? []).map((item) => <span key={item}>{item}</span>)}
+                </div>
+                <small>{preset.ids.length} critérios pré-selecionados</small>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-      <section className={styles.customLayout}>
-        <aside className={`card ${styles.customList}`}>
+      {sectionTab === 'mine' ? (
+        <section className={['card', styles.customList, styles.tabPanel].join(' ')}>
           <div className={styles.sectionHead}>
             <div>
               <p>MEUS PRESETS</p>
@@ -188,31 +226,43 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
             <span>{presets.length}/20</span>
           </div>
 
-          {!presets.length ? <div className={styles.empty}>Nenhum preset personalizado criado.</div> : null}
+          {!presets.length ? (
+            <div className={styles.empty}>Nenhum preset personalizado criado.</div>
+          ) : (
+            <div className={styles.presetGrid}>
+              {presets.map((preset) => (
+                <article
+                  key={preset.id}
+                  className={selectedId === preset.id ? styles.customCardActive : styles.customCard}
+                >
+                  <button className={styles.editButton} type="button" onClick={() => editPreset(preset)}>
+                    <span>
+                      <strong>{preset.name}</strong>
+                      <small>{preset.language ?? 'Geral / multilíngue'} · {preset.criteriaIds.length} critérios</small>
+                    </span>
+                    <Pencil aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.deleteButton}
+                    disabled={busy}
+                    onClick={() => void deletePreset(preset.id)}
+                    aria-label={'Excluir preset ' + preset.name}
+                    title="Excluir preset"
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
 
-          {presets.map((preset) => (
-            <article
-              key={preset.id}
-              className={selectedId === preset.id ? styles.customCardActive : styles.customCard}
-            >
-              <button className="btn btn-ghost btn-sm" type="button" onClick={() => editPreset(preset)}>
-                <strong>{preset.name}</strong>
-                <small>{preset.language ?? 'Geral / multilíngue'} · {preset.criteriaIds.length} critérios</small>
-              </button>
-              <button
-                type="button"
-                className={`btn btn-ghost btn-error btn-sm ${styles.deleteButton}`}
-                disabled={busy}
-                onClick={() => void deletePreset(preset.id)}
-                aria-label={`Excluir preset ${preset.name}`}
-              >
-                Excluir
-              </button>
-            </article>
-          ))}
-        </aside>
+          {message ? <span className={styles.listMessage} role="status">{message}</span> : null}
+        </section>
+      ) : null}
 
-        <section className={`card ${styles.editor}`}>
+      {sectionTab === 'editor' ? (
+        <section className={['card', styles.editor, styles.tabPanel].join(' ')}>
           <div className={styles.editorHead}>
             <div>
               <p>{selectedId ? 'EDITAR PRESET' : 'NOVO PRESET'}</p>
@@ -224,7 +274,8 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
           <div className={styles.formGrid}>
             <label>
               <span>Nome</span>
-              <input className="input input-bordered w-full"
+              <input
+                className="input input-bordered w-full"
                 value={name}
                 maxLength={60}
                 placeholder="Ex.: Backend Python rigoroso"
@@ -234,7 +285,8 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
 
             <label>
               <span>Linguagem base</span>
-              <select className="select select-bordered w-full"
+              <select
+                className="select select-bordered w-full"
                 value={language}
                 onChange={(event) => {
                   const next = event.target.value as QualityLanguage | '';
@@ -251,7 +303,8 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
           <div className={styles.filterRow}>
             <label>
               <span>Filtrar critérios exibidos</span>
-              <select className="select select-bordered w-full"
+              <select
+                className="select select-bordered w-full"
                 value={languageFilter}
                 onChange={(event) => setLanguageFilter(event.target.value as 'all' | 'global' | QualityLanguage)}
               >
@@ -277,7 +330,8 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
                       className={criteriaIds.includes(criterion.id) ? styles.criterionActive : styles.criterion}
                       key={criterion.id}
                     >
-                      <input className="checkbox checkbox-primary checkbox-sm"
+                      <input
+                        className="checkbox checkbox-primary checkbox-sm"
                         type="checkbox"
                         checked={criteriaIds.includes(criterion.id)}
                         onChange={() => toggleCriterion(criterion.id)}
@@ -297,17 +351,22 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
           <div className={styles.editorActions}>
             <button
               type="button"
-              className={`btn btn-primary ${styles.primary}`}
+              className={['btn', 'btn-primary', styles.primary].join(' ')}
               disabled={busy || !name.trim() || !criteriaIds.length}
               onClick={() => void savePreset()}
             >
               {busy ? 'Salvando…' : selectedId ? 'Salvar alterações' : 'Criar preset'}
             </button>
-            <button type="button" className={`btn btn-ghost ${styles.secondary}`} onClick={clearEditor}>Limpar</button>
+            <button type="button" className={['btn', 'btn-ghost', styles.secondary].join(' ')} onClick={() => clearEditor()}>
+              Limpar
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setSectionTab('mine')}>
+              Voltar aos presets
+            </button>
             {message ? <span role="status">{message}</span> : null}
           </div>
         </section>
-      </section>
+      ) : null}
     </main>
   );
 }

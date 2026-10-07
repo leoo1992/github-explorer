@@ -122,3 +122,23 @@
   padding: 0 18px;
   text-decoration: none;
 }
+
+
+.page {
+  display: block;
+  padding: 0 18px 82px;
+}
+
+.card {
+  margin: 38px auto 0;
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding: 0 12px 78px;
+  }
+
+  .card {
+    margin-top: 18px;
+  }
+}

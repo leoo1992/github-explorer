@@ -102,3 +102,42 @@ alter table public.usage_events
 create index if not exists usage_events_user_quality_created_idx
   on public.usage_events (user_id, quality_score desc nulls last, created_at desc)
   where event_type = 'repository_analysis' and state = 'complete';
+
+
+-- Relatórios compartilháveis somente leitura.
+create table if not exists public.shared_reports (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique check (char_length(slug) between 20 and 80),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  repository text not null,
+  quality_score smallint check (quality_score is null or quality_score between 0 and 100),
+  quality_profile text,
+  analysis jsonb not null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz
+);
+
+alter table public.shared_reports enable row level security;
+
+revoke all on public.shared_reports from anon;
+revoke all on public.shared_reports from authenticated;
+grant select, delete on public.shared_reports to authenticated;
+grant select, insert, update, delete on public.shared_reports to service_role;
+
+create policy "Users can read own shared reports"
+on public.shared_reports
+for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create policy "Users can delete own shared reports"
+on public.shared_reports
+for delete
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create index if not exists shared_reports_slug_idx on public.shared_reports(slug);
+create index if not exists shared_reports_user_created_idx on public.shared_reports(user_id, created_at desc);
+
+comment on table public.shared_reports is
+  'Snapshots públicos somente leitura de análises RepoScope acessados por slug não enumerável.';
