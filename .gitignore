@@ -7,3 +7,6 @@ out
 !.env.example
 *.log
 .DS_Store
+
+# TypeScript incremental compiler cache
+*.tsbuildinfo

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ArrowDown, BookMarked, Check, File, Folder, Minus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useRef, useState } from 'react';
 import {
@@ -81,28 +82,28 @@ function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds
   const visibleSignals = data.qualitySignals.filter((signal) => labels.has(signal.label));
 
   return (
-    <div className="tab-content">
+    <div className="analysis-content">
       <section className="metric-grid">
-        <article><span>Qualidade</span><strong>{score.score}%</strong><small>{score.passed}/{score.total} critérios atendidos</small></article>
-        <article><span>Arquivos</span><strong>{compact(data.totals.files)}</strong><small>{data.totals.directories} diretórios</small></article>
-        <article><span>Stack</span><strong>{data.stack.length}</strong><small>tecnologias detectadas</small></article>
-        <article><span>Manifestos</span><strong>{data.totals.manifests}</strong><small>arquivos de dependência</small></article>
+        <article className="card"><span>Qualidade</span><strong>{score.score}%</strong><small>{score.passed}/{score.total} critérios atendidos</small></article>
+        <article className="card"><span>Arquivos</span><strong>{compact(data.totals.files)}</strong><small>{data.totals.directories} diretórios</small></article>
+        <article className="card"><span>Stack</span><strong>{data.stack.length}</strong><small>tecnologias detectadas</small></article>
+        <article className="card"><span>Manifestos</span><strong>{data.totals.manifests}</strong><small>arquivos de dependência</small></article>
       </section>
 
       <section className="overview-grid">
-        <article className="panel">
+        <article className="card panel">
           <div className="panel-head"><div><p>Composição</p><h2>Linguagens</h2></div></div>
           <div className="language-list">
             {data.languages.slice(0, 8).map((item, index) => (
               <div className="language-row" key={item.name}>
                 <div><span className={`language-dot language-dot-${(index % 5) + 1}`} /><strong>{item.name}</strong><small>{item.percentage.toFixed(1)}%</small></div>
-                <div className="language-track"><span style={{ width: `${Math.max(2, item.percentage)}%` }} /></div>
+                <progress className="progress progress-primary language-track" value={item.percentage} max={100} aria-label={`${item.name}: ${item.percentage.toFixed(1)}%`} />
               </div>
             ))}
           </div>
         </article>
 
-        <article className="panel">
+        <article className="card panel">
           <div className="panel-head"><div><p>Detecção</p><h2>Stack tecnológica</h2></div></div>
           <div className="stack-cloud">
             {data.stack.map((item) => (
@@ -113,12 +114,12 @@ function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds
           </div>
         </article>
 
-        <article className="panel wide">
-          <div className="panel-head"><div><p>Engineering signals</p><h2>Critérios considerados na nota</h2><small className="quality-profile-label">{data.qualityProfile}</small></div><span className="criteria-count">{visibleSignals.length} aplicáveis</span></div>
+        <article className="card panel wide">
+          <div className="panel-head"><div><p>Engineering signals</p><h2>Critérios considerados na nota</h2><small className="quality-profile-label">{data.qualityProfile}</small></div><span className="badge badge-soft badge-primary criteria-count">{visibleSignals.length} aplicáveis</span></div>
           <div className="quality-grid">
             {visibleSignals.map((signal) => (
               <div className={signal.found ? 'quality-card quality-ok' : 'quality-card'} key={signal.label}>
-                <span>{signal.found ? '✓' : '—'}</span>
+                <span>{signal.found ? <Check aria-hidden="true" /> : <Minus aria-hidden="true" />}</span>
                 <div><strong>{signal.label}</strong><small>{signal.detail}</small></div>
               </div>
             ))}
@@ -131,16 +132,16 @@ function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds
 
 function Architecture({ layers }: { layers: ArchitectureLayer[] }) {
   return (
-    <div className="tab-content">
+    <div className="analysis-content">
       <section className="architecture-map">
         {layers.map((layer, index) => (
           <div className="architecture-node-wrap" key={`${layer.name}-${index}`}>
-            <article className="architecture-node">
+            <article className="card architecture-node">
               <span className="node-index">{String(index + 1).padStart(2, '0')}</span>
               <p>{layer.name}</p><h3>{layer.role}</h3>
               <div>{layer.technologies.map((item) => <span key={item}>{item}</span>)}</div>
             </article>
-            {index < layers.length - 1 ? <div className="architecture-arrow">↓</div> : null}
+            {index < layers.length - 1 ? <div className="architecture-arrow"><ArrowDown aria-hidden="true" /></div> : null}
           </div>
         ))}
       </section>
@@ -156,12 +157,12 @@ function Files({ entries, truncated }: { entries: TreeEntry[]; truncated: boolea
   }, [entries, query]);
 
   return (
-    <div className="tab-content">
-      <section className="panel">
-        <div className="panel-head file-panel-head"><div><p>Repository tree</p><h2>Estrutura de arquivos</h2></div><label className="file-search"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filtrar arquivo ou pasta" /></label></div>
+    <div className="analysis-content">
+      <section className="card panel">
+        <div className="panel-head file-panel-head"><div><p>Repository tree</p><h2>Estrutura de arquivos</h2></div><label className="input file-search"><input className="input input-bordered w-full" value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Filtrar arquivo ou pasta" placeholder="Filtrar arquivo ou pasta" /></label></div>
         {truncated ? <p className="tree-note">Exibição resumida para manter a análise rápida.</p> : null}
         <div className="tree-list">
-          {filtered.slice(0, 300).map((entry) => <div className="tree-row" key={`${entry.type}-${entry.path}`}><span className={entry.type === 'tree' ? 'tree-type tree-folder' : 'tree-type'}>{entry.type === 'tree' ? '▰' : '▱'}</span><span>{entry.path}</span>{entry.size !== null ? <small>{compact(entry.size)} B</small> : null}</div>)}
+          {filtered.slice(0, 300).map((entry) => <div className="tree-row" key={`${entry.type}-${entry.path}`}><span className={entry.type === 'tree' ? 'tree-type tree-folder' : 'tree-type'}>{entry.type === 'tree' ? <Folder aria-hidden="true" /> : <File aria-hidden="true" />}</span><span>{entry.path}</span>{entry.size !== null ? <small>{compact(entry.size)} B</small> : null}</div>)}
         </div>
       </section>
     </div>
@@ -170,10 +171,10 @@ function Files({ entries, truncated }: { entries: TreeEntry[]; truncated: boolea
 
 function Dependencies({ items }: { items: DependencyItem[] }) {
   return (
-    <div className="tab-content">
-      <section className="panel">
+    <div className="analysis-content">
+      <section className="card panel">
         <div className="panel-head"><div><p>Package manifests</p><h2>Dependências</h2></div></div>
-        <div className="dependency-table-wrap"><table className="dependency-table"><thead><tr><th>Pacote</th><th>Versão</th><th>Escopo</th><th>Manifesto</th></tr></thead><tbody>{items.map((item, index) => <tr key={`${item.name}-${index}`}><td><strong>{item.name}</strong></td><td>{item.version}</td><td><span className="scope-pill">{item.scope}</span></td><td>{item.manifest}</td></tr>)}</tbody></table></div>
+        <div className="dependency-table-wrap"><table className="table table-zebra dependency-table"><thead><tr><th>Pacote</th><th>Versão</th><th>Escopo</th><th>Manifesto</th></tr></thead><tbody>{items.map((item, index) => <tr key={`${item.name}-${index}`}><td><strong>{item.name}</strong></td><td>{item.version}</td><td><span className="badge badge-soft badge-info scope-pill">{item.scope}</span></td><td>{item.manifest}</td></tr>)}</tbody></table></div>
       </section>
     </div>
   );
@@ -219,7 +220,7 @@ function RecentAnalysesTable({
   );
 
   return (
-    <section className="shell recent-analyses">
+    <section className="card shell recent-analyses">
       <div className="recent-head">
         <div><p>HISTÓRICO</p><h2>Suas análises dos últimos 30 dias</h2></div>
         <span>{filtered.length} de {items.length} análises</span>
@@ -228,7 +229,7 @@ function RecentAnalysesTable({
       <div className="recent-toolbar">
         <label>
           <span>Busca geral</span>
-          <input
+          <input className="input input-bordered w-full"
             value={query}
             placeholder="Repositório, perfil, nota, data ou critérios"
             onChange={(event) => {
@@ -241,7 +242,7 @@ function RecentAnalysesTable({
       </div>
 
       <div className="recent-table-wrap">
-        <table className="recent-table">
+        <table className="table table-zebra recent-table">
           <thead>
             <tr>
               <th>Repositório</th>
@@ -268,7 +269,7 @@ function RecentAnalysesTable({
                   <td>{item.criteriaCount ?? '—'}</td>
                   <td>{formatRecentDate(item.createdAt)}</td>
                   <td>
-                    <button type="button" disabled={loading} onClick={() => onRun(item)}>
+                    <button className="btn btn-ghost btn-sm" type="button" disabled={loading} onClick={() => onRun(item)}>
                       Analisar novamente
                     </button>
                   </td>
@@ -285,8 +286,8 @@ function RecentAnalysesTable({
       <div className="recent-pagination">
         <span>Página {safePage} de {pageCount}</span>
         <div>
-          <button type="button" disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button>
-          <button type="button" disabled={safePage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Próxima</button>
+          <button className="btn btn-ghost btn-sm" type="button" disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button>
+          <button className="btn btn-ghost btn-sm" type="button" disabled={safePage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Próxima</button>
         </div>
       </div>
     </section>
@@ -458,18 +459,18 @@ export function ExplorerPaid({
 
   return (
     <main>
-      <section className="hero">
-        <div className="topbar shell">
+      <section className="analysis-hero">
+        <div className="topbar shell theme-header">
           <Link className="brand" href="/"><BrandIcon className="brand-mark" /><span><strong>RepoScope</strong><small>Engineering Intelligence</small></span></Link>
-          <div className="repo-actions">{admin ? <Link className="secondary-action" href="/admin">Admin</Link> : null}{paid || admin ? <Link className="secondary-action" href="/presets">Presets</Link> : null}<Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
+          <div className="repo-actions">{admin ? <Link className="btn btn-ghost btn-sm secondary-action" href="/admin">Admin</Link> : null}{paid || admin ? <Link className="btn btn-ghost btn-sm secondary-action" href="/presets">Presets</Link> : null}<Link className="btn btn-ghost btn-sm secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="btn btn-ghost btn-sm secondary-action" type="submit">Sair</button></form></div>
         </div>
-        <div className="hero-content shell">
-          <div className="hero-copy"><p className="eyebrow">{accessLabel}</p><h1>Avalie repositórios públicos com evidências técnicas.</h1><p>Informe um repositório público do GitHub e escolha quais sinais entram no cálculo. Etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>
+        <div className="analysis-hero-content shell">
+          <div className="hero-copy"><p className="eyebrow">{accessLabel}</p><h1>Uma visão técnica do seu repositório.</h1><p>Explore a arquitetura, as dependências e a qualidade do código em um só lugar.</p></div>
           <form className="repo-form" onSubmit={submit}>
             <div className="repo-input">
               <div className="repository-address" aria-label="Endereço do repositório no GitHub">
                 <span className="repository-prefix">https://github.com/</span>
-                <input
+                <input className="input input-bordered w-full"
                   aria-label="Owner do GitHub"
                   value={owner}
                   onChange={(event) => setOwner(event.target.value.replace(/\//g, ''))}
@@ -480,7 +481,7 @@ export function ExplorerPaid({
                   disabled={loading}
                 />
                 <span className="repository-slash">/</span>
-                <input
+                <input className="input input-bordered w-full"
                   aria-label="Nome do repositório"
                   value={repository}
                   onChange={(event) => setRepository(event.target.value.replace(/\//g, ''))}
@@ -491,7 +492,7 @@ export function ExplorerPaid({
                   disabled={loading}
                 />
               </div>
-              <button type="submit" disabled={loading || !repositoryReady}>
+              <button className="btn btn-primary" type="submit" disabled={loading || !repositoryReady}>
                 {loading ? 'Processando…' : 'Analisar repositório'}
               </button>
             </div>
@@ -499,7 +500,7 @@ export function ExplorerPaid({
             <div className="examples">
               <span>{repositoryInput.hint} Exemplos:</span>
               {repositoryInput.examples.map((example) => (
-                <button
+                <button className="btn btn-ghost btn-sm"
                   key={`${example.owner}/${example.repository}`}
                   type="button"
                   disabled={loading}
@@ -522,8 +523,8 @@ export function ExplorerPaid({
         {!analysis && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Informe um repositório para iniciar.</h2><p>{profileSelection.mode === 'auto' ? 'Modo automático ativo: a stack será detectada e somente critérios compatíveis entrarão na nota.' : `${profileSelection.label}: ${profileSelection.criteriaIds.length} critérios selecionados.`}</p></div> : null}
         {!analysis && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Preencha owner e repositório para formar uma URL completa do GitHub.</p></div> : null}
         {analysis ? <>
-          <header className="repo-header"><div className="repo-identity"><div className="repo-icon">◆</div><div><p>{analysis.repository.owner}</p><h2>{analysis.repository.name}</h2><span>{analysis.repository.description ?? 'Sem descrição cadastrada no GitHub.'}</span></div></div><div className="repo-actions"><a className="primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">Abrir GitHub</a></div><div className="repo-meta"><span><strong>{compact(analysis.repository.stars)}</strong> stars</span><span><strong>{compact(analysis.repository.forks)}</strong> forks</span><span><strong>{analysis.repository.defaultBranch}</strong> branch</span></div></header>
-          <nav className="tabs">{([['overview','Visão geral'],['architecture','Arquitetura'],['files','Arquivos'],['dependencies','Dependências']] as const).map(([value,label]) => <button key={value} type="button" className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{label}</button>)}</nav>
+          <header className="card repo-header"><div className="repo-identity"><div className="repo-icon"><BookMarked aria-hidden="true" /></div><div><p>{analysis.repository.owner}</p><h2>{analysis.repository.name}</h2><span>{analysis.repository.description ?? 'Sem descrição cadastrada no GitHub.'}</span></div></div><div className="repo-actions"><a className="btn btn-primary primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">Abrir GitHub</a></div><div className="repo-meta"><span><strong>{compact(analysis.repository.stars)}</strong> stars</span><span><strong>{compact(analysis.repository.forks)}</strong> forks</span><span><strong>{analysis.repository.defaultBranch}</strong> branch</span></div></header>
+          <nav className="tabs tabs-box analysis-tabs">{([['overview','Visão geral'],['architecture','Arquitetura'],['files','Arquivos'],['dependencies','Dependências']] as const).map(([value,label]) => <button key={value} type="button" className={tab === value ? 'tab tab-active active' : 'tab'} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{label}</button>)}</nav>
           {tab === 'overview' ? <Overview data={analysis} criteriaIds={appliedCriteria} /> : null}
           {tab === 'architecture' ? <Architecture layers={analysis.layers} /> : null}
           {tab === 'files' ? <Files entries={analysis.tree} truncated={analysis.treeTruncated} /> : null}

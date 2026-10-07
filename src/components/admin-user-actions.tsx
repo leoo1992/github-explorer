@@ -59,10 +59,10 @@ export function AdminUserActions({ userId, email, admin }: AdminUserActionsProps
   return (
     <div className={styles.actions}>
       <div className={styles.buttons}>
-        <button type="button" onClick={() => void grant()} disabled={busy !== null}>
+        <button className="btn btn-soft btn-success btn-sm" type="button" onClick={() => void grant()} disabled={busy !== null}>
           {busy === 'grant' ? 'Concedendo…' : 'Dar 30 dias grátis'}
         </button>
-        <button type="button" onClick={() => void remove()} disabled={busy !== null}>
+        <button className="btn btn-soft btn-error btn-sm" type="button" onClick={() => void remove()} disabled={busy !== null}>
           {busy === 'delete' ? 'Removendo…' : 'Remover'}
         </button>
       </div>

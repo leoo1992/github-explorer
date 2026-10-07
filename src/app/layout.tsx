@@ -22,22 +22,23 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#070a12',
+  themeColor: '#12161e',
 };
 
 const themeBootScript = `
 (function () {
   try {
-    var stored = localStorage.getItem('reposcope.theme');
+    var stored;
+    try { stored = localStorage.getItem('reposcope.theme'); } catch (_) {}
     var theme = stored === 'light' || stored === 'dark'
       ? stored
-      : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'light' ? '#f8fafc' : '#070a12');
+    if (meta) meta.setAttribute('content', theme === 'light' ? '#f5f6f8' : '#12161e');
   } catch (_) {
-    document.documentElement.dataset.theme = 'dark';
+    document.documentElement.dataset.theme = 'light';
   }
 })();`;
 
@@ -45,7 +46,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="pt-BR" data-theme="light" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>

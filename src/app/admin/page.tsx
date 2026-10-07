@@ -88,7 +88,7 @@ export default async function AdminPage() {
 
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
+      <header className={`theme-header ${styles.header}`}>
         <Link className={styles.brand} href="/">
           <BrandIcon className={styles.brandIcon} />
           <span>
@@ -98,9 +98,9 @@ export default async function AdminPage() {
         </Link>
 
         <div className={styles.headerActions}>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/account">Minha conta</Link>
-          <Link href="/admin">Atualizar</Link>
+          <Link className="btn btn-ghost btn-sm" href="/dashboard">Dashboard</Link>
+          <Link className="btn btn-ghost btn-sm" href="/account">Minha conta</Link>
+          <Link className="btn btn-ghost btn-sm" href="/admin">Atualizar</Link>
         </div>
       </header>
 
@@ -145,7 +145,7 @@ export default async function AdminPage() {
         </article>
       </section>
 
-      <section className={styles.section}>
+      <section className={`card ${styles.section}`}>
         <div className={styles.sectionHead}>
           <div>
             <p>USUÁRIOS</p>
@@ -155,7 +155,7 @@ export default async function AdminPage() {
         </div>
 
         <div className={styles.tableWrap}>
-          <table>
+          <table className="table table-zebra">
             <thead>
               <tr>
                 <th>E-mail</th>
@@ -175,9 +175,9 @@ export default async function AdminPage() {
               {data.users.map((user) => (
                 <tr key={user.id}>
                   <td><strong>{user.email}</strong></td>
-                  <td><span className={user.role === 'admin' ? styles.adminBadge : styles.badge}>{user.role === 'admin' ? 'Admin' : 'Usuário'}</span></td>
+                  <td><span className={`badge badge-soft ${user.role === 'admin' ? styles.adminBadge : styles.badge}`}>{user.role === 'admin' ? 'Admin' : 'Usuário'}</span></td>
                   <td>
-                    <span className={user.emailConfirmed && user.manualVerified ? styles.okBadge : styles.warnBadge}>
+                    <span className={`badge badge-soft ${user.emailConfirmed && user.manualVerified ? styles.okBadge : styles.warnBadge}`}>
                       {user.emailConfirmed && user.manualVerified ? 'Confirmado' : 'Pendente'}
                     </span>
                   </td>
@@ -211,7 +211,7 @@ export default async function AdminPage() {
       </section>
 
       <div className={styles.twoColumns}>
-        <section className={styles.section}>
+        <section className={`card ${styles.section}`}>
           <div className={styles.sectionHead}>
             <div>
               <p>CONSUMO</p>
@@ -231,7 +231,7 @@ export default async function AdminPage() {
           </div>
         </section>
 
-        <section className={styles.section}>
+        <section className={`card ${styles.section}`}>
           <div className={styles.sectionHead}>
             <div>
               <p>SESSÕES</p>
@@ -247,7 +247,7 @@ export default async function AdminPage() {
                   <small>{shortAgent(session.userAgent)}</small>
                 </div>
                 <div>
-                  <span className={session.active ? styles.okBadge : styles.badge}>{session.active ? 'Ativa' : 'Encerrada'}</span>
+                  <span className={`badge badge-soft ${session.active ? styles.okBadge : styles.badge}`}>{session.active ? 'Ativa' : 'Encerrada'}</span>
                   <small>IP {session.ip ?? '—'} · {formatDateTime(session.refreshedAt ?? session.updatedAt)}</small>
                 </div>
               </article>
@@ -256,7 +256,7 @@ export default async function AdminPage() {
         </section>
       </div>
 
-      <section className={styles.section}>
+      <section className={`card ${styles.section}`}>
         <div className={styles.sectionHead}>
           <div>
             <p>PAGAMENTOS</p>
@@ -269,7 +269,7 @@ export default async function AdminPage() {
           <p className={styles.warning}>Não foi possível consultar os pagamentos neste momento. As assinaturas continuam disponíveis na tabela de usuários.</p>
         ) : (
           <div className={styles.tableWrap}>
-            <table>
+            <table className="table table-zebra">
               <thead>
                 <tr>
                   <th>Fatura</th>
@@ -285,7 +285,7 @@ export default async function AdminPage() {
                   <tr key={payment.id}>
                     <td><strong>{payment.number ?? payment.id}</strong></td>
                     <td>{payment.email ?? 'Não identificado'}</td>
-                    <td><span className={payment.status === 'paid' ? styles.okBadge : styles.badge}>{payment.status ?? '—'}</span></td>
+                    <td><span className={`badge badge-soft ${payment.status === 'paid' ? styles.okBadge : styles.badge}`}>{payment.status ?? '—'}</span></td>
                     <td>{formatMoney(payment.amountPaid, payment.currency)}</td>
                     <td>{formatDateTime(payment.createdAt)}</td>
                     <td>{payment.hostedInvoiceUrl ? <a className={styles.link} href={payment.hostedInvoiceUrl} target="_blank" rel="noreferrer">Abrir</a> : '—'}</td>
@@ -300,7 +300,7 @@ export default async function AdminPage() {
         )}
       </section>
 
-      <section className={styles.section}>
+      <section className={`card ${styles.section}`}>
         <div className={styles.sectionHead}>
           <div>
             <p>ATIVIDADE</p>
@@ -310,7 +310,7 @@ export default async function AdminPage() {
         </div>
 
         <div className={styles.tableWrap}>
-          <table>
+          <table className="table table-zebra">
             <thead>
               <tr>
                 <th>Usuário</th>
@@ -326,7 +326,7 @@ export default async function AdminPage() {
                 <tr key={event.id}>
                   <td>{event.email ?? 'Usuário removido'}</td>
                   <td><strong>{event.repository ?? '—'}</strong></td>
-                  <td><span className={event.state === 'complete' ? styles.okBadge : event.state === 'waiting' ? styles.warnBadge : styles.badge}>{usageStateLabel(event.state)}</span></td>
+                  <td><span className={`badge badge-soft ${event.state === 'complete' ? styles.okBadge : event.state === 'waiting' ? styles.warnBadge : styles.badge}`}>{usageStateLabel(event.state)}</span></td>
                   <td>{event.durationMs === null ? '—' : `${(event.durationMs / 1000).toFixed(1)}s`}</td>
                   <td>{event.criteriaCount ?? '—'}</td>
                   <td>{formatDateTime(event.createdAt)}</td>
@@ -342,7 +342,7 @@ export default async function AdminPage() {
 
       <footer className={styles.footer}>
         <span>Dados administrativos protegidos por sessão e papel de administrador.</span>
-        <form action="/auth/signout" method="post"><button type="submit">Sair</button></form>
+        <form action="/auth/signout" method="post"><button className="btn btn-ghost btn-sm" type="submit">Sair</button></form>
       </footer>
     </main>
   );

@@ -16,9 +16,9 @@ export default async function PricingPage() {
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
-        <header className={styles.header}>
+        <header className={`theme-header ${styles.header}`}>
           <Link href="/" className={styles.brand}>RepoScope <span>Engineering Intelligence</span></Link>
-          <form action="/auth/signout" method="post"><button type="submit">Sair</button></form>
+          <form action="/auth/signout" method="post"><button className="btn btn-ghost btn-sm" type="submit">Sair</button></form>
         </header>
 
         <section className={styles.hero}>
@@ -27,7 +27,7 @@ export default async function PricingPage() {
           <span>Seu cadastro está concluído. O acesso ao motor de análise permanece bloqueado até a confirmação do pagamento.</span>
         </section>
 
-        <section className={styles.plan}>
+        <section className={`card ${styles.plan}`}>
           <div className={styles.planHead}>
             <div><small>REPOSCOPE PRO</small><h2>Engineering Intelligence</h2><p>Para recrutadores, Tech Leads e equipes que precisam avaliar repositórios com critérios consistentes.</p></div>
             <div className={styles.price}><strong>{priceLabel}</strong><span>assinatura recorrente</span></div>

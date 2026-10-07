@@ -35,14 +35,14 @@ export function ForgotPasswordForm({ recoveryError = false }: { recoveryError?: 
   }
 
   return (
-    <div className={styles.card}>
+    <div className={`card ${styles.card}`}>
       <h2>Redefinir senha</h2>
       <p className={styles.note}>Informe o e-mail da sua conta. Você receberá um link seguro para criar uma nova senha.</p>
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <label>
           E-mail
-          <input
+          <input className="input input-bordered w-full"
             type="email"
             autoComplete="email"
             value={email}
@@ -52,7 +52,7 @@ export function ForgotPasswordForm({ recoveryError = false }: { recoveryError?: 
           />
         </label>
 
-        <button className={styles.primary} type="submit" disabled={loading}>
+        <button className={`btn btn-primary ${styles.primary}`} type="submit" disabled={loading}>
           {loading ? 'Enviando…' : 'Enviar link de redefinição'}
         </button>
       </form>

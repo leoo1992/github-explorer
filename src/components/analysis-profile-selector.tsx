@@ -130,7 +130,7 @@ export function AnalysisProfileSelector({
       <div className="analysis-profile-head">
         <label>
           <span>Perfil de avaliação</span>
-          <select value={value} disabled={disabled} onChange={(event) => choose(event.target.value)}>
+          <select className="select select-bordered w-full" value={value} disabled={disabled} onChange={(event) => choose(event.target.value)}>
             <option value="auto">Automático — recomendado</option>
             <optgroup label="Presets padrão">
               {STANDARD_QUALITY_PRESETS.map((preset) => (
@@ -149,7 +149,7 @@ export function AnalysisProfileSelector({
             <option value="manual">Seleção manual</option>
           </select>
         </label>
-        {presetAccess ? <Link className="manage-presets-link" href="/presets">Gerenciar presets</Link> : null}
+        {presetAccess ? <Link className="btn btn-ghost btn-sm manage-presets-link" href="/presets">Gerenciar presets</Link> : null}
       </div>
 
       <div className={value === 'auto' ? 'analysis-profile-summary auto' : 'analysis-profile-summary'}>
@@ -161,7 +161,7 @@ export function AnalysisProfileSelector({
         <div className="criteria-presets">
           <span>Seleções rápidas</span>
           {Object.entries(QUALITY_PRESETS).map(([key, preset]) => (
-            <button
+            <button className="btn btn-ghost btn-sm"
               key={key}
               type="button"
               disabled={disabled}
@@ -177,7 +177,7 @@ export function AnalysisProfileSelector({
 
         <label className="manual-language-filter">
           <span>Filtrar critérios</span>
-          <select
+          <select className="select select-bordered w-full"
             value={languageFilter}
             disabled={disabled}
             onChange={(event) => setLanguageFilter(event.target.value as 'all' | 'global' | QualityLanguage)}
@@ -191,7 +191,7 @@ export function AnalysisProfileSelector({
         <div className="criteria-grid">
           {visibleCriteria.map((criterion) => (
             <label className={manualIds.includes(criterion.id) ? 'criterion checked' : 'criterion'} key={criterion.id}>
-              <input
+              <input className="checkbox checkbox-primary checkbox-sm"
                 type="checkbox"
                 checked={manualIds.includes(criterion.id)}
                 disabled={disabled}

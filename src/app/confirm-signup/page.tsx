@@ -48,7 +48,7 @@ export default async function ConfirmSignupPage({ searchParams }: ConfirmSignupP
             </div>
           </div>
 
-          <div className={authStyles.card}>
+          <div className={`card ${authStyles.card}`}>
             <h2>{valid ? 'Confirmar e-mail' : 'Não foi possível validar o link'}</h2>
             {valid ? (
               <form className={authStyles.form} action="/auth/confirm" method="post">
@@ -60,10 +60,10 @@ export default async function ConfirmSignupPage({ searchParams }: ConfirmSignupP
                   </>
                 ) : null}
                 <input type="hidden" name="next" value={requestedNext} />
-                <button className={authStyles.primary} type="submit">Confirmar meu e-mail</button>
+                <button className={`btn btn-primary ${authStyles.primary}`} type="submit">Confirmar meu e-mail</button>
               </form>
             ) : (
-              <Link href="/login?mode=login" className={authStyles.primary}>Voltar para entrar</Link>
+              <Link href="/login?mode=login" className={`btn btn-primary ${authStyles.primary}`}>Voltar para entrar</Link>
             )}
             <p className={authStyles.note}>Uma simples requisição GET nunca libera o acesso à conta.</p>
           </div>

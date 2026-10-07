@@ -23,7 +23,7 @@ export function CheckoutButton() {
 
   return (
     <div>
-      <button type="button" onClick={() => void checkout()} disabled={loading}>
+      <button className="btn btn-primary" type="button" onClick={() => void checkout()} disabled={loading}>
         {loading ? 'Abrindo pagamento…' : 'Assinar e liberar avaliações'}
       </button>
       {error ? <p role="alert">{error}</p> : null}
