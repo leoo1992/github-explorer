@@ -176,6 +176,36 @@ function detectEcosystemStack(tree: TreeEntry[], manifests: Array<{ path: string
   return detected;
 }
 
+function isQualityInfrastructurePath(path: string) {
+  const normalized = path.toLowerCase();
+  return normalized.startsWith('quality/') ||
+    normalized === 'tests/repository-quality.test.mjs' ||
+    normalized === '.github/workflows/repository-quality.yml';
+}
+
+function detectProjectLanguages(tree: TreeEntry[]) {
+  const detected = new Set<string>();
+  for (const entry of tree) {
+    if (entry.type !== 'blob') continue;
+    const path = entry.path.toLowerCase();
+    if (/\.(?:js|jsx|mjs|cjs|vue|svelte)$/.test(path)) detected.add('JavaScript');
+    if (/\.(?:ts|tsx)$/.test(path)) detected.add('TypeScript');
+    if (/\.py$/.test(path)) detected.add('Python');
+    if (/\.java$/.test(path)) detected.add('Java');
+    if (/\.cs$/.test(path)) detected.add('C#');
+    if (/\.go$/.test(path)) detected.add('Go');
+    if (/\.rs$/.test(path)) detected.add('Rust');
+    if (/\.php$/.test(path)) detected.add('PHP');
+    if (/\.rb$/.test(path)) detected.add('Ruby');
+    if (/\.kts?$/.test(path)) detected.add('Kotlin');
+    if (/\.swift$/.test(path)) detected.add('Swift');
+    if (/\.dart$/.test(path)) detected.add('Dart');
+    if (/\.(?:cpp|cc|cxx|hpp|hh|hxx)$/.test(path)) detected.add('C++');
+    if (/\.(?:c|h)$/.test(path)) detected.add('C');
+  }
+  return [...detected];
+}
+
 function mergeStack(...groups: StackItem[][]) {
   const map = new Map<string, StackItem>();
   for (const item of groups.flat()) if (!map.has(item.name)) map.set(item.name, item);
@@ -199,12 +229,14 @@ async function analyze(repo: Repo) {
       size: typeof entry.size === 'number' ? entry.size : null,
     }));
 
-  const packagePaths = tree
+  const projectTree = tree.filter((entry) => !isQualityInfrastructurePath(entry.path));
+
+  const packagePaths = projectTree
     .filter((entry) => entry.type === 'blob' && /(^|\/)package\.json$/i.test(entry.path) && entry.path.split('/').length <= 4)
     .slice(0, 8)
     .map((entry) => entry.path);
 
-  const ecosystemPaths = tree
+  const ecosystemPaths = projectTree
     .filter((entry) =>
       entry.type === 'blob' &&
       /(^|\/)(pyproject\.toml|requirements[^/]*\.txt|pom\.xml|build\.gradle(?:\.kts)?|composer\.json|gemfile|pubspec\.ya?ml|[^/]+\.csproj|go\.mod|cargo\.toml)$/i.test(entry.path) &&
@@ -229,11 +261,11 @@ async function analyze(repo: Repo) {
 
   const dependencies = collectDependencies(packageManifests);
   const stack = mergeStack(
-    detectStack(dependencies, tree),
-    detectEcosystemStack(tree, ecosystemManifests),
+    detectStack(dependencies, projectTree),
+    detectEcosystemStack(projectTree, ecosystemManifests),
   );
 
-  const languages = Object.keys(languageBytes);
+  const languages = detectProjectLanguages(projectTree);
   const profile = automaticQualityProfile(languages, stack.map((item) => item.name));
   const result = await analyzeQualitySignals({
     owner,
