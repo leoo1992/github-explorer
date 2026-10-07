@@ -23,7 +23,7 @@ export function BillingPortalButton() {
 
   return (
     <div>
-      <button type="button" onClick={() => void openPortal()} disabled={loading}>
+      <button className="btn btn-primary" type="button" onClick={() => void openPortal()} disabled={loading}>
         {loading ? 'Abrindo pagamento seguro…' : 'Gerenciar assinatura'}
       </button>
       {error ? <p role="alert">{error}</p> : null}

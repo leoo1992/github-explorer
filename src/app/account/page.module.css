@@ -3,32 +3,32 @@
   display: grid;
   place-items: center;
   padding: 32px 18px;
-  background: radial-gradient(circle at top, rgba(79,140,255,.10), transparent 38%), #090d17;
-  color: #f5f7fb;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .card {
   width: min(720px, 100%);
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 22px;
+  border: 1px solid var(--surface-2);
+  border-radius: 16px;
   padding: 28px;
-  background: rgba(14,19,32,.92);
-  box-shadow: 0 22px 80px rgba(0,0,0,.28);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .brand {
   display: inline-flex;
-  color: #fff;
+  color: var(--text);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 650;
   text-decoration: none;
 }
 
 .eyebrow {
   margin: 30px 0 8px;
-  color: #8eb3ff;
-  font-size: 11px;
-  font-weight: 900;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 650;
   letter-spacing: .14em;
 }
 
@@ -49,9 +49,9 @@
 .details div {
   min-height: 90px;
   padding: 16px;
-  border: 1px solid rgba(255,255,255,.08);
+  border: 1px solid var(--surface-2);
   border-radius: 14px;
-  background: rgba(255,255,255,.025);
+  background: var(--surface-2);
 }
 
 .details span,
@@ -61,8 +61,8 @@
 
 .details span {
   margin-bottom: 8px;
-  color: #8390a9;
-  font-size: 11px;
+  color: var(--muted);
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: .08em;
 }
@@ -80,30 +80,23 @@
   justify-content: center;
   min-height: 44px;
   padding: 0 18px;
-  border: 0;
-  border-radius: 12px;
-  background: #f5f7fb;
-  color: #09101e;
   font: inherit;
-  font-weight: 900;
   text-decoration: none;
-  cursor: pointer;
 }
 
 .card button:disabled {
   opacity: .6;
-  cursor: wait;
 }
 
 .card [role='alert'] {
-  color: #ff9b9b;
-  font-size: 13px;
+  color: var(--red);
+  font-size: 14px;
 }
 
 .note {
   margin: 18px 0 0;
-  color: #8390a9;
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -127,10 +120,5 @@
 .secondaryCta {
   min-height: 44px;
   padding: 0 18px;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 12px;
-  background: transparent;
-  color: #dce5f5;
-  font-weight: 900;
   text-decoration: none;
 }

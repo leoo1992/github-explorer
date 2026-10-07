@@ -48,7 +48,7 @@ export default async function AccountPage() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.card}>
+      <section className={`card ${styles.card}`}>
         <Link href="/dashboard" className={styles.brand}>RepoScope</Link>
         <p className={styles.eyebrow}>CONTA E ACESSO</p>
         <h1>{internalAccess ? 'Acesso administrativo ao RepoScope.' : 'Gerencie seu acesso ao RepoScope.'}</h1>
@@ -61,23 +61,23 @@ export default async function AccountPage() {
 
         {internalAccess ? (
           <div className={styles.actions}>
-            <Link href="/admin" className={styles.cta}>Painel administrativo</Link>
-            <Link href="/presets" className={styles.secondaryCta}>Gerenciar presets</Link>
-            <Link href="/dashboard" className={styles.secondaryCta}>Ir para o dashboard</Link>
+            <Link href="/admin" className={`btn btn-primary ${styles.cta}`}>Painel administrativo</Link>
+            <Link href="/presets" className={`btn btn-ghost ${styles.secondaryCta}`}>Gerenciar presets</Link>
+            <Link href="/dashboard" className={`btn btn-ghost ${styles.secondaryCta}`}>Ir para o dashboard</Link>
           </div>
         ) : access.paid && access.subscription ? (
           <div className={styles.actions}>
-            <Link href="/dashboard" className={styles.cta}>Ir para o dashboard</Link>
-            <Link href="/presets" className={styles.secondaryCta}>Gerenciar presets</Link>
+            <Link href="/dashboard" className={`btn btn-primary ${styles.cta}`}>Ir para o dashboard</Link>
+            <Link href="/presets" className={`btn btn-ghost ${styles.secondaryCta}`}>Gerenciar presets</Link>
             <BillingPortalButton />
           </div>
         ) : access.canAnalyze ? (
           <div className={styles.actions}>
-            <Link href="/dashboard" className={styles.cta}>Ir para o dashboard</Link>
-            <Link href="/pricing" className={styles.secondaryCta}>Ver plano</Link>
+            <Link href="/dashboard" className={`btn btn-primary ${styles.cta}`}>Ir para o dashboard</Link>
+            <Link href="/pricing" className={`btn btn-ghost ${styles.secondaryCta}`}>Ver plano</Link>
           </div>
         ) : (
-          <Link href="/pricing" className={styles.cta}>Ativar RepoScope Pro</Link>
+          <Link href="/pricing" className={`btn btn-primary ${styles.cta}`}>Ativar RepoScope Pro</Link>
         )}
 
         <p className={styles.note}>

@@ -95,7 +95,7 @@ export function PasswordField({
     <label>
       {label}
       <span className={styles.passwordField}>
-        <input
+        <input className="input input-bordered w-full"
           type={visible ? 'text' : 'password'}
           autoComplete={autoComplete}
           value={value}
@@ -106,7 +106,7 @@ export function PasswordField({
         />
         <button
           type="button"
-          className={styles.passwordToggle}
+          className={`btn btn-ghost btn-square btn-sm ${styles.passwordToggle}`}
           onClick={() => setVisible((current) => !current)}
           aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
           title={visible ? 'Ocultar senha' : 'Mostrar senha'}
@@ -314,16 +314,16 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
     password === passwordConfirmation;
 
   return (
-    <div className={styles.card}>
-      <div className={styles.tabs}>
+    <div className={`card ${styles.card}`}>
+      <div className={`tabs tabs-box ${styles.tabs}`}>
         <button
           type="button"
-          className={mode === 'signup' ? styles.active : ''}
+          className={`tab ${mode === 'signup' ? `tab-active ${styles.active}` : ''}`} aria-pressed={mode === 'signup'}
           onClick={() => switchMode('signup')}
         >
           Criar conta
         </button>
-        <button type="button" className={mode === 'login' ? styles.active : ''} onClick={() => switchMode('login')}>
+        <button type="button" className={`tab ${mode === 'login' ? `tab-active ${styles.active}` : ''}`} aria-pressed={mode === 'login'} onClick={() => switchMode('login')}>
           Entrar
         </button>
       </div>
@@ -336,10 +336,10 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
         <>
           <div className={`${styles.socialGrid} ${visibleProviderCount === 1 ? styles.singleProvider : ''}`}>
             {providers.google ? (
-              <button type="button" onClick={() => void handleOAuth('google')} disabled={loading}><span>G</span> Continuar com Google</button>
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => void handleOAuth('google')} disabled={loading}><span>G</span> Continuar com Google</button>
             ) : null}
             {providers.azure ? (
-              <button type="button" onClick={() => void handleOAuth('azure')} disabled={loading}><span>M</span> Continuar com Microsoft</button>
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => void handleOAuth('azure')} disabled={loading}><span>M</span> Continuar com Microsoft</button>
             ) : null}
           </div>
           <div className={styles.divider}><span>ou use e-mail e senha</span></div>
@@ -349,13 +349,13 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
       <form onSubmit={handleCredentials} className={styles.form}>
         <label>
           E-mail
-          <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="voce@empresa.com" />
+          <input className="input input-bordered w-full" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="voce@empresa.com" />
         </label>
 
         {mode === 'signup' ? (
           <label>
             Confirmar e-mail
-            <input
+            <input className="input input-bordered w-full"
               type="email"
               autoComplete="email"
               value={emailConfirmation}
@@ -391,7 +391,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
         ) : null}
 
         <button
-          className={styles.primary}
+          className={`btn btn-primary ${styles.primary}`}
           type="submit"
           disabled={loading || (mode === 'signup' && !signupFormReady)}
         >

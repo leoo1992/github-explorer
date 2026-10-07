@@ -53,7 +53,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <div className={styles.card}>
+    <div className={`card ${styles.card}`}>
       <h2>Crie uma nova senha</h2>
       <p className={styles.note}>Digite a nova senha duas vezes para confirmar a alteração.</p>
 
@@ -73,7 +73,7 @@ export function ResetPasswordForm() {
           placeholder="Digite a nova senha novamente"
         />
         <button
-          className={styles.primary}
+          className={`btn btn-primary ${styles.primary}`}
           type="submit"
           disabled={loading || !isStrongPassword(password) || password !== passwordConfirmation}
         >

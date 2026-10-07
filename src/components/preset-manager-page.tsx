@@ -133,11 +133,11 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
 
   return (
     <main className={styles.page}>
-      <header className={styles.topbar}>
+      <header className={`theme-header ${styles.topbar}`}>
         <Link href="/dashboard" className={styles.brand}>RepoScope</Link>
         <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/account">Conta</Link>
+          <Link className="btn btn-ghost btn-sm" href="/dashboard">Dashboard</Link>
+          <Link className="btn btn-ghost btn-sm" href="/account">Conta</Link>
         </nav>
       </header>
 
@@ -150,7 +150,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
             e não podem ser excluídos. Seus presets personalizados podem ser criados, editados e removidos.
           </span>
         </div>
-        <button type="button" onClick={clearEditor}>Novo preset</button>
+        <button className="btn btn-primary" type="button" onClick={clearEditor}>Novo preset</button>
       </section>
 
       <section className={styles.systemSection}>
@@ -163,10 +163,10 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
         </div>
         <div className={styles.systemGrid}>
           {STANDARD_QUALITY_PRESETS.map((preset) => (
-            <article className={styles.systemCard} key={preset.id}>
+            <article className={`card ${styles.systemCard}`} key={preset.id}>
               <div className={styles.cardTop}>
                 <strong>{preset.label}</strong>
-                <span>PADRÃO</span>
+                <span className="badge badge-soft badge-info">PADRÃO</span>
               </div>
               <p>{preset.description}</p>
               <div className={styles.tags}>
@@ -179,7 +179,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
       </section>
 
       <section className={styles.customLayout}>
-        <aside className={styles.customList}>
+        <aside className={`card ${styles.customList}`}>
           <div className={styles.sectionHead}>
             <div>
               <p>MEUS PRESETS</p>
@@ -195,13 +195,13 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
               key={preset.id}
               className={selectedId === preset.id ? styles.customCardActive : styles.customCard}
             >
-              <button type="button" onClick={() => editPreset(preset)}>
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => editPreset(preset)}>
                 <strong>{preset.name}</strong>
                 <small>{preset.language ?? 'Geral / multilíngue'} · {preset.criteriaIds.length} critérios</small>
               </button>
               <button
                 type="button"
-                className={styles.deleteButton}
+                className={`btn btn-ghost btn-error btn-sm ${styles.deleteButton}`}
                 disabled={busy}
                 onClick={() => void deletePreset(preset.id)}
                 aria-label={`Excluir preset ${preset.name}`}
@@ -212,7 +212,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
           ))}
         </aside>
 
-        <section className={styles.editor}>
+        <section className={`card ${styles.editor}`}>
           <div className={styles.editorHead}>
             <div>
               <p>{selectedId ? 'EDITAR PRESET' : 'NOVO PRESET'}</p>
@@ -224,7 +224,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
           <div className={styles.formGrid}>
             <label>
               <span>Nome</span>
-              <input
+              <input className="input input-bordered w-full"
                 value={name}
                 maxLength={60}
                 placeholder="Ex.: Backend Python rigoroso"
@@ -234,7 +234,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
 
             <label>
               <span>Linguagem base</span>
-              <select
+              <select className="select select-bordered w-full"
                 value={language}
                 onChange={(event) => {
                   const next = event.target.value as QualityLanguage | '';
@@ -251,7 +251,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
           <div className={styles.filterRow}>
             <label>
               <span>Filtrar critérios exibidos</span>
-              <select
+              <select className="select select-bordered w-full"
                 value={languageFilter}
                 onChange={(event) => setLanguageFilter(event.target.value as 'all' | 'global' | QualityLanguage)}
               >
@@ -261,7 +261,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
               </select>
             </label>
             {language ? (
-              <button type="button" onClick={() => buildFromLanguage(language)}>
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => buildFromLanguage(language)}>
                 Restaurar padrão da linguagem
               </button>
             ) : null}
@@ -277,7 +277,7 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
                       className={criteriaIds.includes(criterion.id) ? styles.criterionActive : styles.criterion}
                       key={criterion.id}
                     >
-                      <input
+                      <input className="checkbox checkbox-primary checkbox-sm"
                         type="checkbox"
                         checked={criteriaIds.includes(criterion.id)}
                         onChange={() => toggleCriterion(criterion.id)}
@@ -297,13 +297,13 @@ export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQu
           <div className={styles.editorActions}>
             <button
               type="button"
-              className={styles.primary}
+              className={`btn btn-primary ${styles.primary}`}
               disabled={busy || !name.trim() || !criteriaIds.length}
               onClick={() => void savePreset()}
             >
               {busy ? 'Salvando…' : selectedId ? 'Salvar alterações' : 'Criar preset'}
             </button>
-            <button type="button" className={styles.secondary} onClick={clearEditor}>Limpar</button>
+            <button type="button" className={`btn btn-ghost ${styles.secondary}`} onClick={clearEditor}>Limpar</button>
             {message ? <span role="status">{message}</span> : null}
           </div>
         </section>
