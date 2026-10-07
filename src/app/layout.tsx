@@ -7,7 +7,7 @@ import './theme.css';
 export const metadata: Metadata = {
   title: 'RepoScope | GitHub Engineering Intelligence',
   description:
-    'Avalie repositórios e portfólios públicos do GitHub com evidências de arquitetura, stack, qualidade e maturidade de engenharia.',
+    'Avalie repositórios públicos do GitHub com evidências de arquitetura, stack, qualidade e maturidade de engenharia.',
   applicationName: 'RepoScope',
   keywords: [
     'GitHub analysis',
