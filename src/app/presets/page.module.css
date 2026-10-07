@@ -416,3 +416,251 @@
   .filterRow label { min-width: 0; }
   .filterRow button { width: 100%; }
 }
+
+
+/* Tabbed preset workspace keeps each task inside one viewport and avoids
+   stacking system presets, personal presets and the editor vertically. */
+.page {
+  min-height: 100dvh;
+  padding: 0 0 82px;
+}
+
+.hero,
+.pageTabs,
+.tabPanel {
+  width: min(1320px, calc(100% - 24px));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero {
+  margin-top: 18px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.hero h1 {
+  font-size: clamp(26px, 3vw, 36px);
+}
+
+.hero span {
+  max-width: 840px;
+  line-height: 1.5;
+}
+
+.pageTabs {
+  margin-bottom: 12px;
+  padding: 4px;
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  overflow-x: auto;
+  border: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.pageTabs :global(.tab) {
+  min-height: 38px;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.pageTabs :global(.tab-active) {
+  color: var(--color-primary-content);
+  background: var(--color-primary);
+}
+
+.tabPanel {
+  max-height: calc(100dvh - 184px);
+  margin-bottom: 0;
+  overflow: auto;
+}
+
+.systemSection.tabPanel {
+  margin-bottom: 0;
+}
+
+.customList.tabPanel {
+  align-self: stretch;
+}
+
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.customCard,
+.customCardActive {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-rows: minmax(64px, auto);
+  min-height: 64px;
+  overflow: hidden;
+}
+
+.editButton {
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.editButton > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.editButton strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editButton small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editButton > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.deleteButton {
+  width: 44px;
+  min-width: 44px;
+  min-height: 64px;
+  height: 100%;
+  padding: 0;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  border: 0;
+  border-top: 0;
+  border-left: 1px solid var(--app-border);
+  border-radius: 0;
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 6%, var(--surface));
+  cursor: pointer;
+}
+
+.deleteButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 13%, var(--surface));
+}
+
+.deleteButton:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.deleteButton svg {
+  width: 17px;
+  height: 17px;
+}
+
+.listMessage {
+  display: block;
+  margin-top: 4px;
+  color: var(--blue);
+  font-size: 12px;
+}
+
+.editor.tabPanel {
+  padding: 18px;
+}
+
+@media (max-width: 820px) {
+  .presetGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tabPanel {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding-inline: 0;
+    padding-bottom: 78px;
+  }
+
+  .hero,
+  .pageTabs,
+  .tabPanel {
+    width: min(100% - 20px, 1320px);
+  }
+
+  .hero {
+    margin-top: 10px;
+    gap: 12px;
+  }
+
+  .hero h1 {
+    font-size: 26px;
+  }
+
+  .hero > button {
+    width: 100%;
+  }
+
+  .pageTabs {
+    top: 58px;
+  }
+
+  .pageTabs :global(.tab) {
+    flex: 1 0 auto;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .tabPanel {
+    max-height: calc(100dvh - 218px);
+    overflow: auto;
+  }
+
+  .systemSection,
+  .customList,
+  .editor {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .sectionHead,
+  .editorHead {
+    margin-bottom: 10px;
+  }
+
+  .customCard,
+  .customCardActive {
+    grid-template-columns: minmax(0, 1fr) 42px;
+  }
+
+  .deleteButton {
+    width: 42px;
+    min-width: 42px;
+  }
+}
