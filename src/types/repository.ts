@@ -75,14 +75,3 @@ export interface RepositoryAnalysis {
   analyzedAt: string;
 }
 
-
-export interface OwnerQualitySummary {
-  owner: string;
-  average: number | null;
-  totalRepositories: number;
-  analyzedRepositories: number;
-  complete: boolean;
-  scope: 'public';
-  analyzedAt: string;
-  repositories?: Array<{ name: string; score: number }>;
-}
