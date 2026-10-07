@@ -62,11 +62,13 @@ export default async function AccountPage() {
         {internalAccess ? (
           <div className={styles.actions}>
             <Link href="/admin" className={styles.cta}>Painel administrativo</Link>
+            <Link href="/presets" className={styles.secondaryCta}>Gerenciar presets</Link>
             <Link href="/dashboard" className={styles.secondaryCta}>Ir para o dashboard</Link>
           </div>
         ) : access.paid && access.subscription ? (
           <div className={styles.actions}>
             <Link href="/dashboard" className={styles.cta}>Ir para o dashboard</Link>
+            <Link href="/presets" className={styles.secondaryCta}>Gerenciar presets</Link>
             <BillingPortalButton />
           </div>
         ) : access.canAnalyze ? (
