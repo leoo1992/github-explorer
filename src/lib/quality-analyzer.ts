@@ -149,7 +149,7 @@ function hasFormatter(deps: Set<string>, paths: string[], text: string) {
     'prettier', '@biomejs/biome', 'dprint', 'black', 'yapf', 'autopep8', 'isort', 'ruff',
     'php-cs-fixer', 'swiftformat',
   ].some((dep) => deps.has(dep)) ||
-    paths.some((path) => /(^|\/)(\.prettierrc|prettier\.config\.|biome\.json|dprint\.json|rustfmt\.toml|\.clang-format|\.editorconfig)$/i.test(path)) ||
+    paths.some((path) => /(^|\/)(\.prettierrc(?:\.[^/]+)?|prettier\.config\.[^/]+|biome\.json|dprint\.json|rustfmt\.toml|\.clang-format|\.editorconfig)$/i.test(path)) ||
     /\b(prettier|biome\s+format|dprint|black|ruff\s+format|gofmt|rustfmt|spotless|ktlint|google-java-format|php-cs-fixer|swiftformat|dart\s+format|clang-format)\b|\[tool\.ruff\.format\]/i.test(text);
 }
 
