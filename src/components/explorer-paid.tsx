@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, BookMarked, Check, File, Folder, Minus } from 'lucide-react';
+import { ArrowDown, BookMarked, File, Folder } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -8,10 +8,13 @@ import {
   type AnalysisProfileSelection,
 } from '@/components/analysis-profile-selector';
 import { AppNavigation } from '@/components/app-navigation';
+import { CorrectionPlanView } from '@/components/correction-plan-view';
+import { QualityEvidencePanel } from '@/components/quality-evidence-panel';
+import { ReportActions } from '@/components/report-actions';
+import { SecurityView } from '@/components/security-view';
 import {
   DEFAULT_QUALITY_CRITERIA_IDS,
   calculateQualityScore,
-  qualityCriterionLabels,
 } from '@/lib/quality-criteria';
 import type { RecentAnalysis } from '@/lib/usage';
 import type {
@@ -21,7 +24,7 @@ import type {
   TreeEntry,
 } from '@/types/repository';
 
-type Tab = 'overview' | 'architecture' | 'files' | 'dependencies';
+type Tab = 'overview' | 'architecture' | 'security' | 'files' | 'dependencies' | 'correction';
 type WorkspaceView = 'analyze' | 'history' | 'result';
 type AnalysisState = 'idle' | 'running' | 'waiting' | 'complete' | 'empty';
 
@@ -78,8 +81,6 @@ function delay(ms: number, signal: AbortSignal) {
 function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds: string[] }) {
   const repositoryLanguages = data.languages.map((language) => language.name);
   const score = calculateQualityScore(data.qualitySignals, criteriaIds, repositoryLanguages);
-  const labels = qualityCriterionLabels(criteriaIds, repositoryLanguages);
-  const visibleSignals = data.qualitySignals.filter((signal) => labels.has(signal.label));
 
   return (
     <div className="analysis-content">
@@ -114,17 +115,12 @@ function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds
           </div>
         </article>
 
-        <article className="card panel wide">
-          <div className="panel-head"><div><p>Engineering signals</p><h2>Critérios considerados na nota</h2><small className="quality-profile-label">{data.qualityProfile}</small></div><span className="badge badge-soft badge-primary criteria-count">{visibleSignals.length} aplicáveis</span></div>
-          <div className="quality-grid">
-            {visibleSignals.map((signal) => (
-              <div className={signal.found ? 'quality-card quality-ok' : 'quality-card'} key={signal.label}>
-                <span>{signal.found ? <Check aria-hidden="true" /> : <Minus aria-hidden="true" />}</span>
-                <div><strong>{signal.label}</strong><small>{signal.detail}</small></div>
-              </div>
-            ))}
-          </div>
-        </article>
+        <QualityEvidencePanel
+          signals={data.qualitySignals}
+          criteriaIds={criteriaIds}
+          languages={repositoryLanguages}
+          profile={data.qualityProfile}
+        />
       </section>
     </div>
   );
@@ -642,6 +638,7 @@ export function ExplorerPaid({
                     </div>
                   </div>
                   <div className="repo-actions">
+                    <ReportActions analysis={analysis} />
                     <a className="btn btn-primary primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">
                       Abrir GitHub
                     </a>
@@ -657,8 +654,10 @@ export function ExplorerPaid({
                   {([
                     ['overview', 'Visão geral'],
                     ['architecture', 'Arquitetura'],
+                    ['security', 'Segurança'],
                     ['files', 'Arquivos'],
                     ['dependencies', 'Dependências'],
+                    ['correction', 'Plano de correção'],
                   ] as const).map(([value, label]) => (
                     <button
                       key={value}
@@ -675,8 +674,10 @@ export function ExplorerPaid({
 
                 {tab === 'overview' ? <Overview data={analysis} criteriaIds={appliedCriteria} /> : null}
                 {tab === 'architecture' ? <Architecture layers={analysis.layers} /> : null}
+                {tab === 'security' ? <SecurityView data={analysis} /> : null}
                 {tab === 'files' ? <Files entries={analysis.tree} truncated={analysis.treeTruncated} /> : null}
                 {tab === 'dependencies' ? <Dependencies items={analysis.dependencies} /> : null}
+                {tab === 'correction' ? <CorrectionPlanView data={analysis} /> : null}
               </>
             ) : null}
           </section>
