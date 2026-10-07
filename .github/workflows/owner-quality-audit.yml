@@ -1,0 +1,40 @@
+name: Owner Quality Audit
+
+on:
+  push:
+    branches:
+      - chore/owner-quality-audit
+    paths:
+      - scripts/audit-owner.ts
+      - .github/workflows/owner-quality-audit.yml
+      - src/lib/quality-analyzer.ts
+      - src/lib/quality-criteria.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Audit public repositories
+        env:
+          OWNER: leoo1992
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node --experimental-strip-types scripts/audit-owner.ts
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-quality-report
+          path: owner-quality-report.json
+          retention-days: 1
