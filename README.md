@@ -24,7 +24,11 @@ Os exemplos exibidos na aplicação usam repositórios públicos genéricos, com
 - descoberta de tecnologias por dependências e estrutura;
 - composição de linguagens;
 - mapa de camadas arquiteturais;
-- sinais de qualidade como CI, testes, lint, type checking, Docker, lockfile e licença;
+- **45 critérios de qualidade**, combinando sinais globais e regras específicas por linguagem;
+- suporte de critérios para JavaScript, TypeScript, Python, Java, Kotlin, C#, Go, Rust, PHP, Ruby, Swift, Dart, C e C++;
+- filtros por linguagem sem penalizar um repositório por critérios de outra stack;
+- presets personalizados para assinantes, persistidos por usuário e reutilizáveis em novas análises;
+- sinais de qualidade como CI, testes, lint, type checking, Docker, lockfile, segurança, governança e licença;
 - estrutura de arquivos com busca;
 - inventário de dependências;
 - tratamento de rate limit e erros da API do GitHub.
@@ -70,7 +74,7 @@ Nunca exponha `SUPABASE_SECRET_KEY`, `STRIPE_SECRET_KEY` ou `STRIPE_WEBHOOK_SECR
 
 ## Supabase
 
-O projeto de produção é o `RepoScope` em `sa-east-1`, ref `boamqtcyvflgpewomfhj`. A tabela `subscriptions` possui RLS e usuários autenticados podem ler apenas a própria assinatura. Escritas são realizadas somente pelo backend usando a chave secreta.
+O projeto de produção é o `RepoScope` em `sa-east-1`, ref `boamqtcyvflgpewomfhj`. As tabelas de billing permanecem protegidas por RLS. A tabela `quality_presets` armazena os presets personalizados do usuário; o cliente não possui grants diretos nela e as operações passam pela API autenticada do RepoScope usando o backend.
 
 Em Authentication configure:
 
@@ -120,6 +124,9 @@ A rota de retorno do checkout confirma a sessão no servidor antes de encaminhar
 
 ```text
 GET /api/analyze?repo=vercel/next.js
+GET /api/quality-presets
+POST /api/quality-presets
+DELETE /api/quality-presets?id=<preset-id>
 ```
 
 Sem sessão autenticada retornam `401`. Sem assinatura ativa retornam `402`.
