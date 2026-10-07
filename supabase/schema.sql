@@ -39,7 +39,13 @@ create table if not exists public.quality_presets (
   criteria_ids text[] not null check (cardinality(criteria_ids) > 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint quality_presets_user_name_key unique (user_id, name)
+  constraint quality_presets_user_name_key unique (user_id, name),
+  constraint quality_presets_language_check check (
+    language is null or language in (
+      'JavaScript', 'TypeScript', 'Python', 'Java', 'C#', 'Go', 'Rust',
+      'PHP', 'Ruby', 'Kotlin', 'Swift', 'Dart', 'C', 'C++'
+    )
+  )
 );
 
 alter table public.quality_presets enable row level security;
@@ -53,3 +59,29 @@ create index if not exists quality_presets_user_updated_idx
 
 comment on table public.quality_presets is
   'Paid RepoScope user presets containing a language scope and selected quality criteria.';
+
+
+create policy "Users can read own quality presets"
+on public.quality_presets
+for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create policy "Users can insert own quality presets"
+on public.quality_presets
+for insert
+to authenticated
+with check ((select auth.uid()) = user_id);
+
+create policy "Users can update own quality presets"
+on public.quality_presets
+for update
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+create policy "Users can delete own quality presets"
+on public.quality_presets
+for delete
+to authenticated
+using ((select auth.uid()) = user_id);
