@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandIcon } from '@/components/brand-icon';
 import { redirect } from 'next/navigation';
 import { ResetPasswordForm } from '@/components/reset-password-form';
 import { createClient } from '@/lib/supabase/server';
@@ -18,7 +19,7 @@ export default async function ResetPasswordPage() {
     <main className={styles.page}>
       <div className={styles.shell}>
         <Link className={styles.brand} href="/">
-          <span>RS</span>
+          <BrandIcon className={styles.brandIcon} />
           <div><strong>RepoScope</strong><small>Engineering Intelligence</small></div>
         </Link>
 
