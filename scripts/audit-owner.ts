@@ -36,16 +36,16 @@ type StackItem = {
 
 const owner = process.env.OWNER || 'leoo1992';
 const batchRepositories = new Set([
-  'taskflow-django',
-  'workflows-poc',
-  'CRUD_Mobile_Login',
-  'GerenciadorContaBanco',
-  'poo-na-pratica',
-  'biblioteca',
-  'GeradorQRCode',
-  'hero-app-front',
-  'inputSvelte',
-  'Kanban_React',
+  'Leo-AI-poc',
+  'login-react',
+  'poc-dasboard-fintech',
+  'POC-Redux-App-Viagem',
+  'POC-Redux-Filtros',
+  'POC-Redux-Login',
+  'portfolio-leonardo-react',
+  'project_mananger_poc',
+  'ReactNativeTraining',
+  'sistema_ponto',
 ]);
 const token = process.env.GITHUB_TOKEN?.trim();
 const headers: Record<string, string> = {
