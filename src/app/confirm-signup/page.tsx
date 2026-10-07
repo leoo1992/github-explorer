@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandIcon } from '@/components/brand-icon';
 import styles from '../login/page.module.css';
 import authStyles from '@/components/auth-form.module.css';
 
@@ -27,7 +28,7 @@ export default async function ConfirmSignupPage({ searchParams }: ConfirmSignupP
     <main className={styles.page}>
       <div className={styles.shell}>
         <Link className={styles.brand} href="/">
-          <span>RS</span>
+          <BrandIcon className={styles.brandIcon} />
           <div><strong>RepoScope</strong><small>Engineering Intelligence</small></div>
         </Link>
 

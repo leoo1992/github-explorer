@@ -1,7 +1,8 @@
 .page { min-height:100vh; color:#e2e8f0; background:radial-gradient(circle at 12% 0%,rgba(37,99,235,.18),transparent 28%),radial-gradient(circle at 88% 8%,rgba(14,165,233,.1),transparent 30%),#020617; }
 .header { width:min(1180px,calc(100% - 40px)); margin:0 auto; padding:22px 0; display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .brand { display:flex; align-items:center; gap:10px; color:#f8fafc; text-decoration:none; }
-.brand>span { display:grid; place-items:center; width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,#1d4ed8,#38bdf8); font-weight:900; }
+.brandIcon { display:block; width:40px; height:40px; overflow:hidden; border-radius:12px; box-shadow:0 10px 25px rgba(103,87,230,.22); }
+.brandIcon img { display:block; width:100%; height:100%; }
 .brand div { display:grid; } .brand strong{font-size:.96rem}.brand small{color:#64748b;font-size:.68rem}
 .header nav { display:flex; align-items:center; gap:18px; }
 .header nav>a { color:#94a3b8; text-decoration:none; font-size:.85rem; font-weight:750; }

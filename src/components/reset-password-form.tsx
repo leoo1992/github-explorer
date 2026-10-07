@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { PasswordField } from './auth-form';
+import { isStrongPassword, PasswordField } from './auth-form';
 import styles from './auth-form.module.css';
 
 export function ResetPasswordForm() {
@@ -16,6 +16,11 @@ export function ResetPasswordForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage('');
+
+    if (!isStrongPassword(password)) {
+      setMessage('Use uma senha forte com 8+ caracteres, maiúscula, minúscula, número e símbolo.');
+      return;
+    }
 
     if (password !== passwordConfirmation) {
       setMessage('As senhas informadas não coincidem.');
@@ -50,6 +55,7 @@ export function ResetPasswordForm() {
           autoComplete="new-password"
           value={password}
           onChange={setPassword}
+          showStrength
         />
         <PasswordField
           label="Confirmar nova senha"

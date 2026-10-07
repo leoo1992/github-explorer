@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useRef, useState } from 'react';
+import { BrandIcon } from '@/components/brand-icon';
 import {
   DEFAULT_QUALITY_CRITERIA_IDS,
   QUALITY_CRITERIA,
@@ -26,10 +27,16 @@ type AnalysisControl = {
 };
 
 const repositoryInput = {
-  placeholder: 'owner/repository ou URL completa do GitHub',
   hint: 'Arquitetura, stack, dependências e sinais de qualidade.',
-  examples: ['vercel/next.js', 'facebook/react'],
+  examples: [
+    { owner: 'leoo1992', repository: 'github-explorer' },
+    { owner: 'vercel', repository: 'next.js' },
+  ],
 } as const;
+
+function isGitHubSegmentValid(value: string) {
+  return /^[A-Za-z0-9_.-]+$/.test(value.trim());
+}
 
 function compact(value: number) {
   return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
@@ -199,7 +206,8 @@ function CriteriaSelector({ selected, setSelected, disabled }: {
 
 export function ExplorerPaid() {
   const router = useRouter();
-  const [input, setInput] = useState('vercel/next.js');
+  const [owner, setOwner] = useState('');
+  const [repository, setRepository] = useState('');
   const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(null);
   const [analysisState, setAnalysisState] = useState<AnalysisState>('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -250,7 +258,8 @@ export function ExplorerPaid() {
         if (response.ok && 'repository' in body) {
           setStatusMessage('Consolidando resultado');
           setAnalysis(body);
-          setInput(body.repository.fullName);
+          setOwner(body.repository.owner);
+          setRepository(body.repository.name);
           setTab('overview');
           setAnalysisState('complete');
           setLoading(false);
@@ -283,15 +292,24 @@ export function ExplorerPaid() {
     }
   }
 
-  function run(value = input) {
-    const normalized = value.trim();
-    if (!normalized || loading) return;
+  function run(selectedOwner = owner, selectedRepository = repository) {
+    const normalizedOwner = selectedOwner.trim();
+    const normalizedRepository = selectedRepository.trim();
+    if (
+      loading ||
+      !isGitHubSegmentValid(normalizedOwner) ||
+      !isGitHubSegmentValid(normalizedRepository)
+    ) return;
 
     const criteriaSnapshot = [...selectedCriteria];
     setAppliedCriteria(criteriaSnapshot);
-    setInput(normalized);
+    setOwner(normalizedOwner);
+    setRepository(normalizedRepository);
     setStatusMessage('');
-    void analyzeRepository(normalized, criteriaSnapshot);
+    void analyzeRepository(
+      `https://github.com/${normalizedOwner}/${normalizedRepository}`,
+      criteriaSnapshot,
+    );
   }
 
   function submit(event: FormEvent) {
@@ -299,19 +317,62 @@ export function ExplorerPaid() {
     run();
   }
 
+  const repositoryReady =
+    isGitHubSegmentValid(owner) && isGitHubSegmentValid(repository);
+
   return (
     <main>
       <section className="hero">
         <div className="topbar shell">
-          <Link className="brand" href="/"><span className="brand-mark">RS</span><span><strong>RepoScope</strong><small>Engineering Intelligence</small></span></Link>
+          <Link className="brand" href="/"><BrandIcon className="brand-mark" /><span><strong>RepoScope</strong><small>Engineering Intelligence</small></span></Link>
           <div className="repo-actions"><Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
         </div>
         <div className="hero-content shell">
           <div className="hero-copy"><p className="eyebrow">ASSINATURA ATIVA</p><h1>Avalie repositórios públicos com evidências técnicas.</h1><p>Informe um repositório público do GitHub e escolha quais sinais entram no cálculo. Etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>
           <form className="repo-form" onSubmit={submit}>
-            <div className="repo-input"><input aria-label="Repositório do GitHub" value={input} onChange={(event) => setInput(event.target.value)} placeholder={repositoryInput.placeholder} spellCheck={false} disabled={loading} /><button type="submit" disabled={loading || !input.trim()}>{loading ? 'Processando…' : 'Analisar repositório'}</button></div>
+            <div className="repo-input">
+              <div className="repository-address" aria-label="Endereço do repositório no GitHub">
+                <span className="repository-prefix">https://github.com/</span>
+                <input
+                  aria-label="Owner do GitHub"
+                  value={owner}
+                  onChange={(event) => setOwner(event.target.value.replace(/\//g, ''))}
+                  placeholder="owner"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  disabled={loading}
+                />
+                <span className="repository-slash">/</span>
+                <input
+                  aria-label="Nome do repositório"
+                  value={repository}
+                  onChange={(event) => setRepository(event.target.value.replace(/\//g, ''))}
+                  placeholder="repositorio"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  disabled={loading}
+                />
+              </div>
+              <button type="submit" disabled={loading || !repositoryReady}>
+                {loading ? 'Processando…' : 'Analisar repositório'}
+              </button>
+            </div>
             <CriteriaSelector selected={selectedCriteria} setSelected={setSelectedCriteria} disabled={loading} />
-            <div className="examples"><span>{repositoryInput.hint} Exemplos:</span>{repositoryInput.examples.map((example) => <button key={example} type="button" disabled={loading} onClick={() => run(example)}>{example}</button>)}</div>
+            <div className="examples">
+              <span>{repositoryInput.hint} Exemplos:</span>
+              {repositoryInput.examples.map((example) => (
+                <button
+                  key={`${example.owner}/${example.repository}`}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => run(example.owner, example.repository)}
+                >
+                  {example.owner}/{example.repository}
+                </button>
+              ))}
+            </div>
           </form>
         </div>
       </section>
@@ -319,7 +380,7 @@ export function ExplorerPaid() {
       <section className="shell workspace">
         {loading ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>A análise é retomada automaticamente sempre que uma etapa precisa aguardar.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
         {!analysis && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Informe um repositório para iniciar.</h2><p>{selectedCriteria.length} critérios estão selecionados para o próximo cálculo.</p></div> : null}
-        {!analysis && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Use owner/repository ou uma URL completa do GitHub e execute novamente.</p></div> : null}
+        {!analysis && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Preencha owner e repositório para formar uma URL completa do GitHub.</p></div> : null}
         {analysis ? <>
           <header className="repo-header"><div className="repo-identity"><div className="repo-icon">◆</div><div><p>{analysis.repository.owner}</p><h2>{analysis.repository.name}</h2><span>{analysis.repository.description ?? 'Sem descrição cadastrada no GitHub.'}</span></div></div><div className="repo-actions"><a className="primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">Abrir GitHub</a></div><div className="repo-meta"><span><strong>{compact(analysis.repository.stars)}</strong> stars</span><span><strong>{compact(analysis.repository.forks)}</strong> forks</span><span><strong>{analysis.repository.defaultBranch}</strong> branch</span></div></header>
           <nav className="tabs">{([['overview','Visão geral'],['architecture','Arquitetura'],['files','Arquivos'],['dependencies','Dependências']] as const).map(([value,label]) => <button key={value} type="button" className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{label}</button>)}</nav>

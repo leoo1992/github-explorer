@@ -17,14 +17,19 @@
   text-decoration: none;
 }
 
-.brand > span {
-  display: grid;
-  place-items: center;
+.brandIcon {
+  display: block;
   width: 40px;
   height: 40px;
+  overflow: hidden;
   border-radius: 12px;
-  background: linear-gradient(135deg, #1d4ed8, #38bdf8);
-  font-weight: 900;
+  box-shadow: 0 10px 25px rgba(103, 87, 230, 0.22);
+}
+
+.brandIcon img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .brand div { display: grid; }

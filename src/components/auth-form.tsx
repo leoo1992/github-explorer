@@ -21,6 +21,12 @@ type PasswordFieldProps = {
   onChange: (value: string) => void;
   autoComplete: 'new-password' | 'current-password';
   placeholder?: string;
+  showStrength?: boolean;
+};
+
+type PasswordRule = {
+  label: string;
+  valid: boolean;
 };
 
 const FAILED_PROVIDER_KEY: Record<OAuthProvider, string> = {
@@ -39,6 +45,27 @@ const NO_PROVIDERS: AuthProviderAvailability = {
   emailConfirmationRequired: false,
 };
 
+export function passwordRules(password: string): PasswordRule[] {
+  return [
+    { label: '8+ caracteres', valid: password.length >= 8 },
+    { label: 'Maiúscula', valid: /[A-Z]/.test(password) },
+    { label: 'Minúscula', valid: /[a-z]/.test(password) },
+    { label: 'Número', valid: /[0-9]/.test(password) },
+    { label: 'Símbolo', valid: /[^A-Za-z0-9]/.test(password) },
+  ];
+}
+
+export function isStrongPassword(password: string) {
+  return passwordRules(password).every((rule) => rule.valid);
+}
+
+function passwordStrength(password: string) {
+  const score = passwordRules(password).filter((rule) => rule.valid).length;
+  if (score === 5) return { label: 'Forte', level: 'strong' as const, score };
+  if (score >= 3) return { label: 'Média', level: 'medium' as const, score };
+  return { label: 'Fraca', level: 'weak' as const, score };
+}
+
 function EyeIcon({ visible }: { visible: boolean }) {
   return visible ? (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -52,8 +79,17 @@ function EyeIcon({ visible }: { visible: boolean }) {
   );
 }
 
-export function PasswordField({ label, value, onChange, autoComplete, placeholder = 'Mínimo de 8 caracteres' }: PasswordFieldProps) {
+export function PasswordField({
+  label,
+  value,
+  onChange,
+  autoComplete,
+  placeholder = 'Mínimo de 8 caracteres',
+  showStrength = false,
+}: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
+  const rules = passwordRules(value);
+  const strength = passwordStrength(value);
 
   return (
     <label>
@@ -78,6 +114,29 @@ export function PasswordField({ label, value, onChange, autoComplete, placeholde
           <EyeIcon visible={visible} />
         </button>
       </span>
+
+      {showStrength ? (
+        <span className={styles.strengthBox} aria-live="polite">
+          <span className={styles.strengthHead}>
+            <span>Força da senha</span>
+            <strong className={styles[`strength_${strength.level}`]}>{value ? strength.label : '—'}</strong>
+          </span>
+          <span className={styles.strengthTrack} aria-hidden="true">
+            <span
+              className={styles[`strengthBar_${strength.level}`]}
+              style={{ width: value ? `${Math.max(20, strength.score * 20)}%` : '0%' }}
+            />
+          </span>
+          <span className={styles.strengthRules}>
+            {rules.map((rule) => (
+              <span className={rule.valid ? styles.ruleOk : styles.rulePending} key={rule.label}>
+                {rule.valid ? '✓' : '○'} {rule.label}
+              </span>
+            ))}
+          </span>
+          <small>Exemplo de senha forte: <b>Leo*1992</b></small>
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -170,6 +229,11 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
         if (normalizedEmail !== emailConfirmation.trim().toLowerCase()) {
           setMessage('Os e-mails informados não coincidem.');
+          return;
+        }
+
+        if (!isStrongPassword(password)) {
+          setMessage('Use uma senha forte com 8+ caracteres, maiúscula, minúscula, número e símbolo.');
           return;
         }
 
@@ -299,6 +363,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
           value={password}
           onChange={setPassword}
+          showStrength={mode === 'signup'}
         />
 
         {mode === 'signup' ? (
