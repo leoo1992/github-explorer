@@ -32,7 +32,6 @@ export function PresetManagerPage() {
   const [message, setMessage] = useState('');
 
   async function loadPresets() {
-    setLoading(true);
     try {
       const response = await fetch('/api/quality-presets', { cache: 'no-store' });
       const body = await response.json() as { presets?: CustomQualityPreset[]; error?: string };
