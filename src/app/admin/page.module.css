@@ -424,3 +424,112 @@
     margin-top: 22px;
   }
 }
+
+
+.adminTabs,
+.adminTabBody {
+  width: min(1440px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.adminTabs {
+  margin-top: 14px;
+  margin-bottom: 10px;
+  padding: 4px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  overflow-x: auto;
+  border: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.adminTabs :global(.tab) {
+  min-height: 38px;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.adminTabs :global(.tab svg) {
+  width: 15px;
+  height: 15px;
+}
+
+.adminTabs :global(.tab-active) {
+  color: var(--color-primary-content);
+  background: var(--color-primary);
+}
+
+.adminTabBody {
+  min-height: 320px;
+}
+
+.adminTabBody > [data-admin-section] {
+  display: none;
+}
+
+.adminTabBody[data-active='overview'] > [data-admin-section='overview'],
+.adminTabBody[data-active='users'] > [data-admin-section='users'],
+.adminTabBody[data-active='subscriptions'] > [data-admin-section='subscriptions'],
+.adminTabBody[data-active='sessions'] > [data-admin-section='sessions'],
+.adminTabBody[data-active='payments'] > [data-admin-section='payments'],
+.adminTabBody[data-active='analyses'] > [data-admin-section='analyses'] {
+  display: block;
+}
+
+.adminOverview .metrics {
+  width: 100%;
+}
+
+.adminOverview .section,
+.adminTabBody > .section {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.adminTabBody > .section {
+  max-height: calc(100dvh - 190px);
+  overflow: auto;
+}
+
+.adminTabBody > .section .tableWrap {
+  max-height: calc(100dvh - 285px);
+  overflow: auto;
+}
+
+.adminTabBody > .section .tableWrap thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+}
+
+@media (max-width: 767px) {
+  .adminTabs,
+  .adminTabBody {
+    width: min(100% - 20px, 1440px);
+  }
+
+  .adminTabs {
+    top: 58px;
+  }
+
+  .adminTabs :global(.tab) {
+    flex: 1 0 auto;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .adminTabBody > .section {
+    max-height: calc(100dvh - 205px);
+  }
+
+  .adminTabBody > .section .tableWrap {
+    max-height: calc(100dvh - 300px);
+  }
+}
