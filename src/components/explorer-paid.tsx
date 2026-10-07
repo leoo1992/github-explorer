@@ -2,17 +2,16 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
+import {
+  AnalysisProfileSelector,
+  type AnalysisProfileSelection,
+} from '@/components/analysis-profile-selector';
 import { BrandIcon } from '@/components/brand-icon';
 import {
   DEFAULT_QUALITY_CRITERIA_IDS,
-  QUALITY_CRITERIA,
-  QUALITY_LANGUAGES,
-  QUALITY_PRESETS,
   calculateQualityScore,
-  qualityCriteriaForLanguage,
   qualityCriterionLabels,
-  type QualityLanguage,
 } from '@/lib/quality-criteria';
 import type { RecentAnalysis } from '@/lib/usage';
 import type {
@@ -28,15 +27,6 @@ type AnalysisState = 'idle' | 'running' | 'waiting' | 'complete' | 'empty';
 type AnalysisControl = {
   state?: 'waiting' | 'not_found' | 'input';
   retryAfterMs?: number;
-};
-
-type CustomQualityPreset = {
-  id: string;
-  name: string;
-  language: QualityLanguage | null;
-  criteriaIds: string[];
-  createdAt: string;
-  updatedAt: string;
 };
 
 const repositoryInput = {
@@ -124,7 +114,7 @@ function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds
         </article>
 
         <article className="panel wide">
-          <div className="panel-head"><div><p>Engineering signals</p><h2>Critérios considerados na nota</h2></div><span className="criteria-count">{visibleSignals.length} aplicáveis · {criteriaIds.length} selecionados</span></div>
+          <div className="panel-head"><div><p>Engineering signals</p><h2>Critérios considerados na nota</h2><small className="quality-profile-label">{data.qualityProfile}</small></div><span className="criteria-count">{visibleSignals.length} aplicáveis</span></div>
           <div className="quality-grid">
             {visibleSignals.map((signal) => (
               <div className={signal.found ? 'quality-card quality-ok' : 'quality-card'} key={signal.label}>
@@ -189,253 +179,6 @@ function Dependencies({ items }: { items: DependencyItem[] }) {
   );
 }
 
-function CriteriaSelector({
-  selected,
-  setSelected,
-  disabled,
-  presetAccess,
-}: {
-  selected: string[];
-  setSelected: (ids: string[]) => void;
-  disabled: boolean;
-  presetAccess: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [languageFilter, setLanguageFilter] = useState<'all' | 'global' | QualityLanguage>('all');
-  const [customPresets, setCustomPresets] = useState<CustomQualityPreset[]>([]);
-  const [presetName, setPresetName] = useState('');
-  const [presetLanguage, setPresetLanguage] = useState<QualityLanguage | ''>('');
-  const [presetBusy, setPresetBusy] = useState(false);
-  const [presetMessage, setPresetMessage] = useState('');
-
-  useEffect(() => {
-    if (!presetAccess) return;
-    let active = true;
-
-    void fetch('/api/quality-presets', { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return await response.json() as { presets: CustomQualityPreset[] };
-      })
-      .then((body) => {
-        if (active && body?.presets) setCustomPresets(body.presets);
-      })
-      .catch(() => {
-        if (active) setPresetMessage('Não foi possível carregar seus presets agora.');
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [presetAccess]);
-
-  const visibleCriteria = QUALITY_CRITERIA.filter((criterion) => {
-    if (languageFilter === 'all') return true;
-    if (languageFilter === 'global') return !criterion.languages?.length;
-    return !criterion.languages?.length || criterion.languages.includes(languageFilter);
-  });
-  const groups = [...new Set(visibleCriteria.map((criterion) => criterion.group))];
-
-  function toggle(id: string) {
-    if (disabled) return;
-    if (selected.includes(id)) {
-      if (selected.length === 1) return;
-      setSelected(selected.filter((item) => item !== id));
-    } else {
-      setSelected([...selected, id]);
-    }
-  }
-
-  function applyCustomPreset(preset: CustomQualityPreset) {
-    if (disabled) return;
-    setSelected([...preset.criteriaIds]);
-    setLanguageFilter(preset.language ?? 'all');
-    setPresetMessage(`Preset "${preset.name}" aplicado.`);
-  }
-
-  async function savePreset() {
-    const name = presetName.trim();
-    if (!name || disabled || presetBusy) return;
-
-    setPresetBusy(true);
-    setPresetMessage('');
-
-    try {
-      const response = await fetch('/api/quality-presets', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          language: presetLanguage || null,
-          criteriaIds: selected,
-        }),
-      });
-      const body = await response.json() as { preset?: CustomQualityPreset; error?: string };
-
-      if (!response.ok || !body.preset) {
-        setPresetMessage(body.error ?? 'Não foi possível salvar o preset.');
-        return;
-      }
-
-      setCustomPresets((current) => [
-        body.preset!,
-        ...current.filter((item) => item.id !== body.preset!.id),
-      ]);
-      setSelected([...body.preset.criteriaIds]);
-      setPresetName('');
-      setPresetMessage('Preset salvo e pronto para uso.');
-    } catch {
-      setPresetMessage('Não foi possível salvar o preset agora.');
-    } finally {
-      setPresetBusy(false);
-    }
-  }
-
-  async function deletePreset(id: string) {
-    if (disabled || presetBusy) return;
-    setPresetBusy(true);
-    setPresetMessage('');
-
-    try {
-      const response = await fetch(`/api/quality-presets?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null) as { error?: string } | null;
-        setPresetMessage(body?.error ?? 'Não foi possível remover o preset.');
-        return;
-      }
-      setCustomPresets((current) => current.filter((item) => item.id !== id));
-      setPresetMessage('Preset removido.');
-    } catch {
-      setPresetMessage('Não foi possível remover o preset agora.');
-    } finally {
-      setPresetBusy(false);
-    }
-  }
-
-  return (
-    <div className="criteria-selector">
-      <button className="criteria-trigger" type="button" onClick={() => setOpen((value) => !value)} disabled={disabled} aria-expanded={open}>
-        <span><strong>Critérios da nota</strong><small>{selected.length} selecionados · {QUALITY_CRITERIA.length} disponíveis</small></span>
-        <b>{open ? '−' : '+'}</b>
-      </button>
-      {open ? <div className="criteria-panel">
-        <div className="criteria-presets">
-          <span>Cenários rápidos</span>
-          {Object.entries(QUALITY_PRESETS).map(([key, preset]) => (
-            <button key={key} type="button" disabled={disabled} onClick={() => setSelected([...preset.ids])}>{preset.label}</button>
-          ))}
-        </div>
-
-        <div className="criteria-toolbar">
-          <label>
-            <span>Exibir critérios</span>
-            <select
-              value={languageFilter}
-              disabled={disabled}
-              onChange={(event) => setLanguageFilter(event.target.value as 'all' | 'global' | QualityLanguage)}
-            >
-              <option value="all">Todas as linguagens</option>
-              <option value="global">Somente globais</option>
-              {QUALITY_LANGUAGES.map((language) => <option value={language} key={language}>{language}</option>)}
-            </select>
-          </label>
-          {languageFilter !== 'all' && languageFilter !== 'global' ? (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => setSelected(qualityCriteriaForLanguage(languageFilter))}
-            >
-              Selecionar globais + {languageFilter}
-            </button>
-          ) : null}
-        </div>
-
-        {presetAccess ? <div className="preset-manager">
-          <div className="preset-head">
-            <div><strong>Meus presets</strong><small>Exclusivo do plano ativo · até 20 presets</small></div>
-            <span>{customPresets.length}/20</span>
-          </div>
-
-          {customPresets.length ? <div className="custom-preset-list">
-            {customPresets.map((preset) => (
-              <div className="custom-preset-row" key={preset.id}>
-                <button type="button" disabled={disabled || presetBusy} onClick={() => applyCustomPreset(preset)}>
-                  <strong>{preset.name}</strong>
-                  <small>{preset.language ?? 'Geral'} · {preset.criteriaIds.length} critérios</small>
-                </button>
-                <button
-                  className="preset-delete"
-                  type="button"
-                  aria-label={`Remover preset ${preset.name}`}
-                  disabled={disabled || presetBusy}
-                  onClick={() => void deletePreset(preset.id)}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div> : <small className="preset-empty">Você ainda não criou presets personalizados.</small>}
-
-          <div className="preset-editor">
-            <input
-              value={presetName}
-              maxLength={60}
-              placeholder="Nome do preset"
-              disabled={disabled || presetBusy}
-              onChange={(event) => setPresetName(event.target.value)}
-            />
-            <select
-              value={presetLanguage}
-              disabled={disabled || presetBusy}
-              onChange={(event) => setPresetLanguage(event.target.value as QualityLanguage | '')}
-            >
-              <option value="">Geral / multilíngue</option>
-              {QUALITY_LANGUAGES.map((language) => <option value={language} key={language}>{language}</option>)}
-            </select>
-            {presetLanguage ? (
-              <button
-                type="button"
-                disabled={disabled || presetBusy}
-                onClick={() => {
-                  setSelected(qualityCriteriaForLanguage(presetLanguage));
-                  setLanguageFilter(presetLanguage);
-                }}
-              >
-                Montar por linguagem
-              </button>
-            ) : null}
-            <button
-              className="preset-save"
-              type="button"
-              disabled={disabled || presetBusy || !presetName.trim()}
-              onClick={() => void savePreset()}
-            >
-              {presetBusy ? 'Salvando…' : 'Salvar seleção como preset'}
-            </button>
-          </div>
-          {presetMessage ? <small className="preset-message">{presetMessage}</small> : null}
-        </div> : null}
-
-        {groups.map((group) => <div className="criteria-group" key={group}>
-          <strong>{group}</strong>
-          <div className="criteria-grid">
-            {visibleCriteria.filter((criterion) => criterion.group === group).map((criterion) => (
-              <label className={selected.includes(criterion.id) ? 'criterion checked' : 'criterion'} key={criterion.id}>
-                <input type="checkbox" checked={selected.includes(criterion.id)} disabled={disabled} onChange={() => toggle(criterion.id)} />
-                <span>
-                  <b>{criterion.label}</b>
-                  <small>{criterion.description} · {criterion.languages?.length ? criterion.languages.join(', ') : 'Global'}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>)}
-      </div> : null}
-    </div>
-  );
-}
 
 export function ExplorerPaid({
   admin = false,
@@ -459,7 +202,11 @@ export function ExplorerPaid({
   const [tab, setTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(false);
   const [freeAnalysisRemaining, setFreeAnalysisRemaining] = useState(freeAnalysisAvailable);
-  const [selectedCriteria, setSelectedCriteria] = useState<string[]>([...DEFAULT_QUALITY_CRITERIA_IDS]);
+  const [profileSelection, setProfileSelection] = useState<AnalysisProfileSelection>({
+    mode: 'auto',
+    criteriaIds: [],
+    label: 'Automático',
+  });
   const [appliedCriteria, setAppliedCriteria] = useState<string[]>([...DEFAULT_QUALITY_CRITERIA_IDS]);
   const activeController = useRef<AbortController | null>(null);
 
@@ -482,7 +229,7 @@ export function ExplorerPaid({
     return false;
   }
 
-  async function analyzeRepository(value: string, criteriaIds: string[]) {
+  async function analyzeRepository(value: string, selection: AnalysisProfileSelection) {
     const controller = startController();
     setLoading(true);
     setAnalysis(null);
@@ -492,9 +239,16 @@ export function ExplorerPaid({
 
     while (!controller.signal.aborted) {
       try {
-        const criteria = encodeURIComponent(criteriaIds.join(','));
+        const params = new URLSearchParams({
+          repo: value,
+          mode: selection.mode,
+          profile: selection.label,
+        });
+        if (selection.mode === 'selected') {
+          params.set('criteria', selection.criteriaIds.join(','));
+        }
         const response = await fetch(
-          `/api/analyze?repo=${encodeURIComponent(value)}&criteria=${criteria}`,
+          `/api/analyze?${params.toString()}`,
           { cache: 'no-store', signal: controller.signal },
         );
         if (handleAccessStatus(response.status)) return;
@@ -504,6 +258,7 @@ export function ExplorerPaid({
         if (response.ok && 'repository' in body) {
           setStatusMessage('Consolidando resultado');
           setAnalysis(body);
+          setAppliedCriteria(body.appliedCriteriaIds);
           setOwner(body.repository.owner);
           setRepository(body.repository.name);
           setTab('overview');
@@ -550,14 +305,17 @@ export function ExplorerPaid({
       !isGitHubSegmentValid(normalizedRepository)
     ) return;
 
-    const criteriaSnapshot = [...selectedCriteria];
-    setAppliedCriteria(criteriaSnapshot);
+    const selectionSnapshot: AnalysisProfileSelection = {
+      mode: profileSelection.mode,
+      criteriaIds: [...profileSelection.criteriaIds],
+      label: profileSelection.label,
+    };
     setOwner(normalizedOwner);
     setRepository(normalizedRepository);
     setStatusMessage('');
     void analyzeRepository(
       `https://github.com/${normalizedOwner}/${normalizedRepository}`,
-      criteriaSnapshot,
+      selectionSnapshot,
     );
   }
 
@@ -590,7 +348,7 @@ export function ExplorerPaid({
       <section className="hero">
         <div className="topbar shell">
           <Link className="brand" href="/"><BrandIcon className="brand-mark" /><span><strong>RepoScope</strong><small>Engineering Intelligence</small></span></Link>
-          <div className="repo-actions">{admin ? <Link className="secondary-action" href="/admin">Admin</Link> : null}<Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
+          <div className="repo-actions">{admin ? <Link className="secondary-action" href="/admin">Admin</Link> : null}{paid || admin ? <Link className="secondary-action" href="/presets">Presets</Link> : null}<Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
         </div>
         <div className="hero-content shell">
           <div className="hero-copy"><p className="eyebrow">{accessLabel}</p><h1>Avalie repositórios públicos com evidências técnicas.</h1><p>Informe um repositório público do GitHub e escolha quais sinais entram no cálculo. Etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>
@@ -624,7 +382,7 @@ export function ExplorerPaid({
                 {loading ? 'Processando…' : 'Analisar repositório'}
               </button>
             </div>
-            <CriteriaSelector selected={selectedCriteria} setSelected={setSelectedCriteria} disabled={loading} presetAccess={paid || admin} />
+            <AnalysisProfileSelector disabled={loading} presetAccess={paid || admin} onChange={setProfileSelection} />
             <div className="examples">
               <span>{repositoryInput.hint} Exemplos:</span>
               {repositoryInput.examples.map((example) => (
@@ -665,7 +423,7 @@ export function ExplorerPaid({
 
       <section className="shell workspace">
         {loading ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>A análise é retomada automaticamente sempre que uma etapa precisa aguardar.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
-        {!analysis && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Informe um repositório para iniciar.</h2><p>{selectedCriteria.length} critérios estão selecionados para o próximo cálculo.</p></div> : null}
+        {!analysis && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Informe um repositório para iniciar.</h2><p>{profileSelection.mode === 'auto' ? 'Modo automático ativo: a stack será detectada e somente critérios compatíveis entrarão na nota.' : `${profileSelection.label}: ${profileSelection.criteriaIds.length} critérios selecionados.`}</p></div> : null}
         {!analysis && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Preencha owner e repositório para formar uma URL completa do GitHub.</p></div> : null}
         {analysis ? <>
           <header className="repo-header"><div className="repo-identity"><div className="repo-icon">◆</div><div><p>{analysis.repository.owner}</p><h2>{analysis.repository.name}</h2><span>{analysis.repository.description ?? 'Sem descrição cadastrada no GitHub.'}</span></div></div><div className="repo-actions"><a className="primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">Abrir GitHub</a></div><div className="repo-meta"><span><strong>{compact(analysis.repository.stars)}</strong> stars</span><span><strong>{compact(analysis.repository.forks)}</strong> forks</span><span><strong>{analysis.repository.defaultBranch}</strong> branch</span></div></header>
