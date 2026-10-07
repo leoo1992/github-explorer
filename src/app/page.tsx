@@ -19,7 +19,7 @@ export default async function HomePage() {
   const authMethods = describeAuthMethods(providers);
   const signupReady = providers.emailConfirmationRequired;
   const loginHref = '/login?mode=login&next=/dashboard';
-  const signupHref = '/login?next=/pricing';
+  const signupHref = '/login?next=/dashboard';
 
   return (
     <main className={styles.page}>
@@ -63,7 +63,7 @@ export default async function HomePage() {
         <div className={styles.sectionHeading}><p>COMO FUNCIONA</p><h2>{signupReady ? 'Do cadastro à avaliação em três etapas.' : 'Do acesso à avaliação em três etapas.'}</h2></div>
         <div className={styles.steps}>
           <article><span>01</span><h3>{signupReady ? 'Crie sua conta' : 'Entre na sua conta'}</h3><p>{signupReady ? authMethods : 'E-mail e senha.'}</p></article>
-          <article><span>02</span><h3>Ative o plano</h3><p>Você é direcionado a um pagamento seguro. Nenhuma avaliação é liberada antes da confirmação.</p></article>
+          <article><span>02</span><h3>Ative o plano</h3><p>Sua conta começa com 1 análise válida gratuita. Depois disso, o acesso continua por pagamento seguro.</p></article>
           <article><span>03</span><h3>Analise</h3><p>Preencha o owner e o nome do repositório; o RepoScope monta automaticamente a URL https://github.com/owner/repositorio.</p></article>
         </div>
       </section>
@@ -85,7 +85,7 @@ export default async function HomePage() {
         <div>
           <p>PRONTO PARA USAR?</p>
           <h2>Pare de abrir dezenas de arquivos para entender o primeiro nível de um projeto.</h2>
-          <span>{signupReady ? 'Crie sua conta, confirme seu e-mail, assine o RepoScope Pro e libere as avaliações.' : 'Entre na sua conta para continuar seu acesso ao RepoScope.'}</span>
+          <span>{signupReady ? 'Crie sua conta, confirme seu e-mail e faça 1 análise válida gratuita antes de ativar o plano.' : 'Entre na sua conta para continuar seu acesso ao RepoScope.'}</span>
         </div>
         <Link href={signupReady ? signupHref : loginHref}>{signupReady ? 'Começar agora' : 'Entrar'}</Link>
       </section>

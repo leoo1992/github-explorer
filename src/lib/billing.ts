@@ -20,6 +20,12 @@ export async function syncSubscription(subscription: Stripe.Subscription, fallba
 
   if (!userId) throw new Error(`Assinatura ${subscription.id} sem vínculo com usuário.`);
 
+  const { data: linkedUser, error: linkedUserError } = await supabase.auth.admin.getUserById(userId);
+  if (linkedUserError || !linkedUser.user) {
+    console.warn('[billing] ignoring subscription event for removed user', { subscriptionId: subscription.id });
+    return;
+  }
+
   const item = subscription.items.data[0];
   const currentPeriodEnd = item?.current_period_end
     ? new Date(item.current_period_end * 1000).toISOString()

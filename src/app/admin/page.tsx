@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { AdminUserActions } from '@/components/admin-user-actions';
 import { BrandIcon } from '@/components/brand-icon';
 import { getAccessState } from '@/lib/access';
 import { getAdminMonitoringData } from '@/lib/admin-monitoring';
@@ -165,7 +166,9 @@ export default async function AdminPage() {
                 <th>Último login</th>
                 <th>Última sessão</th>
                 <th>Análises 30d</th>
+                <th>Acesso grátis</th>
                 <th>Criado em</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -183,7 +186,23 @@ export default async function AdminPage() {
                   <td>{formatDateTime(user.lastSignInAt)}</td>
                   <td>{formatDateTime(user.lastSessionAt)}</td>
                   <td>{user.analyses30d}</td>
+                  <td>
+                    {user.role === 'admin'
+                      ? 'Permanente'
+                      : user.freeGrantDaysRemaining > 0
+                        ? `${user.freeGrantDaysRemaining} dias restantes`
+                        : user.freeAnalysisUsed
+                          ? 'Análise grátis utilizada'
+                          : '1 análise grátis'}
+                  </td>
                   <td>{formatDateTime(user.createdAt)}</td>
+                  <td>
+                    <AdminUserActions
+                      userId={user.id}
+                      email={user.email}
+                      admin={user.role === 'admin'}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
