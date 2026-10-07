@@ -273,7 +273,7 @@ export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
       totalUsers: users.length,
       confirmedUsers: users.filter((user) => user.emailConfirmed && user.manualVerified).length,
       activeSessions: sessions.filter((session) => session.active).length,
-      activeSubscriptions: subscriptions.filter((subscription) => ['active', 'trialing'].includes(subscription.status)).length,
+      activeSubscriptions: subscriptions.filter((subscription) => subscription.price_id !== 'internal_admin' && ['active', 'trialing'].includes(subscription.status)).length,
       usageTotal: usageTotalResult.count ?? 0,
       usage24h: usage24hResult.count ?? 0,
       usage7d: usage7dResult.count ?? 0,
