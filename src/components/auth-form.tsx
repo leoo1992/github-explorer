@@ -134,7 +134,7 @@ export function PasswordField({
               </span>
             ))}
           </span>
-          <small>Exemplo de senha forte: <b>Leo*1992</b></small>
+          <small>Exemplo de senha forte: <b>Tst@1234</b></small>
         </span>
       ) : null}
     </label>
@@ -304,6 +304,14 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
 
   const visibleProviderCount = Number(providers.google) + Number(providers.azure);
   const signupEnabled = providers.emailConfirmationRequired;
+  const normalizedEmail = email.trim().toLowerCase();
+  const signupFormReady =
+    signupEnabled &&
+    normalizedEmail.length > 0 &&
+    normalizedEmail === emailConfirmation.trim().toLowerCase() &&
+    isStrongPassword(password) &&
+    passwordConfirmation.length > 0 &&
+    password === passwordConfirmation;
 
   return (
     <div className={styles.card}>
@@ -382,7 +390,11 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
           </div>
         ) : null}
 
-        <button className={styles.primary} type="submit" disabled={loading}>
+        <button
+          className={styles.primary}
+          type="submit"
+          disabled={loading || (mode === 'signup' && !signupFormReady)}
+        >
           {loading ? 'Processando…' : mode === 'signup' ? 'Criar conta e continuar' : 'Entrar'}
         </button>
       </form>
