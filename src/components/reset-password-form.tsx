@@ -34,6 +34,14 @@ export function ResetPasswordForm() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
+      const completion = await fetch('/api/auth/password-reset-complete', {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+      });
+      if (!completion.ok) {
+        throw new Error('A senha foi alterada, mas não foi possível concluir a verificação da conta. Solicite uma nova redefinição.');
+      }
+
       await supabase.auth.signOut();
       router.replace('/login?mode=login&password_reset=1');
       router.refresh();
@@ -64,7 +72,11 @@ export function ResetPasswordForm() {
           onChange={setPasswordConfirmation}
           placeholder="Digite a nova senha novamente"
         />
-        <button className={styles.primary} type="submit" disabled={loading}>
+        <button
+          className={styles.primary}
+          type="submit"
+          disabled={loading || !isStrongPassword(password) || password !== passwordConfirmation}
+        >
           {loading ? 'Salvando…' : 'Salvar nova senha'}
         </button>
       </form>
