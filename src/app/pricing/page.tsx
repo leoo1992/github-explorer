@@ -40,7 +40,7 @@ export default async function PricingPage() {
             <div><b>✓</b><span><strong>Evidências explicáveis</strong><small>O score mostra quais sinais técnicos foram encontrados e quais estão ausentes.</small></span></div>
           </div>
 
-          <div className={styles.checkout}><CheckoutButton /><small>Pagamento processado pelo Stripe. O acesso é liberado após a confirmação da assinatura.</small></div>
+          <div className={styles.checkout}><CheckoutButton /><small>Pagamento seguro. O acesso é liberado após a confirmação da assinatura.</small></div>
         </section>
 
         <p className={styles.trust}>RepoScope oferece apoio à análise técnica. Os sinais do GitHub não devem ser usados como decisão automática de contratação e não substituem entrevista técnica ou contexto de projeto.</p>

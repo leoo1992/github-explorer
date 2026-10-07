@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!signature || !webhookSecret) {
-    return Response.json({ error: 'Webhook Stripe não configurado.' }, { status: 503 });
+    return Response.json({ error: 'Serviço de pagamento não configurado.' }, { status: 503 });
   }
 
   try {

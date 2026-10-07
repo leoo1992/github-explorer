@@ -44,7 +44,7 @@ export default async function AccountPage() {
         <p className={styles.note}>
           {internalAccess
             ? 'Conta interna com acesso administrativo e monitoramento operacional.'
-            : 'Alterações de pagamento, cancelamento e método de cobrança são processadas no portal seguro do Stripe.'}
+            : 'Alterações de pagamento, cancelamento e método de cobrança são processadas em um portal de pagamento seguro.'}
         </p>
       </section>
     </main>

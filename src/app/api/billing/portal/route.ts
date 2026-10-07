@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     if (!subscription?.stripe_customer_id) {
-      return Response.json({ error: 'Nenhuma assinatura Stripe foi encontrada para esta conta.' }, { status: 404 });
+      return Response.json({ error: 'Nenhuma assinatura foi encontrada para esta conta.' }, { status: 404 });
     }
 
     const stripe = createStripeClient();
