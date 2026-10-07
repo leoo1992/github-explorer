@@ -39,10 +39,6 @@ interface GitHubContent {
   encoding?: string;
 }
 
-interface GitHubRepositorySearch {
-  items: GitHubRepository[];
-}
-
 interface PackageManifest {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -135,34 +131,12 @@ async function githubFetch<T>(url: string, headers: HeadersInit): Promise<{ data
   };
 }
 
-async function resolveRepoInput(input: string, headers: HeadersInit, allowProjectLookup: boolean) {
+function resolveRepoInput(input: string) {
   const direct = parseDirectRepoInput(input);
-  if (direct) return { ...direct, remaining: null as number | null };
-
-  const project = input.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\/$/, '');
-  if (!allowProjectLookup || !project || project.includes('/') || !/^[A-Za-z0-9_.-]+$/.test(project)) {
-    throw new Error('Informe uma URL do GitHub ou owner/repository válido.');
+  if (!direct) {
+    throw new Error('Informe owner/repository ou a URL completa de um repositório público do GitHub.');
   }
-
-  const query = encodeURIComponent(`${project} in:name`);
-  const result = await githubFetch<GitHubRepositorySearch>(
-    `https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc&per_page=10`,
-    headers,
-  );
-  const exact = result.data.items.find(
-    (item) => item.name.toLowerCase() === project.toLowerCase(),
-  );
-  const repository = exact ?? result.data.items[0];
-
-  if (!repository) {
-    throw new Error(`Nenhum repositório público encontrado para "${project}".`);
-  }
-
-  return {
-    owner: repository.owner.login,
-    repo: repository.name,
-    remaining: result.remaining,
-  };
+  return { ...direct, remaining: null as number | null };
 }
 
 function decodeContent(content: GitHubContent) {
@@ -276,15 +250,11 @@ function buildLayers(stack: StackItem[], tree: TreeEntry[]): ArchitectureLayer[]
 
 export async function analyzeRepository(
   input: string,
-  options: { allowProjectLookup?: boolean; criteriaIds?: string[] } = {},
+  options: { criteriaIds?: string[] } = {},
 ): Promise<RepositoryAnalysis> {
   const headers = buildHeaders();
   const criteriaIds = sanitizeQualityCriteriaIds(options.criteriaIds);
-  const resolved = await resolveRepoInput(
-    input,
-    headers,
-    Boolean(options.allowProjectLookup),
-  );
+  const resolved = resolveRepoInput(input);
   const { owner, repo } = resolved;
   const base = `https://api.github.com/repos/${owner}/${repo}`;
 

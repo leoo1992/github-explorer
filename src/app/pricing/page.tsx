@@ -35,8 +35,8 @@ export default async function PricingPage() {
 
           <div className={styles.features}>
             <div><b>✓</b><span><strong>Análise de repositório</strong><small>Arquitetura, stack, dependências, estrutura e sinais de qualidade.</small></span></div>
-            <div><b>✓</b><span><strong>Análise de owner</strong><small>Leitura agregada dos repositórios públicos de um profissional ou organização.</small></span></div>
-            <div><b>✓</b><span><strong>Busca por nome de projeto</strong><small>Encontre um projeto público e inicie a avaliação a partir do nome.</small></span></div>
+            <div><b>✓</b><span><strong>Critérios configuráveis</strong><small>Escolha quais sinais técnicos entram no cálculo da qualidade.</small></span></div>
+            <div><b>✓</b><span><strong>Estrutura técnica detalhada</strong><small>Explore arquivos, arquitetura, linguagens, stack e dependências do repositório.</small></span></div>
             <div><b>✓</b><span><strong>Evidências explicáveis</strong><small>O score mostra quais sinais técnicos foram encontrados e quais estão ausentes.</small></span></div>
           </div>
 

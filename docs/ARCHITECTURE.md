@@ -22,8 +22,7 @@ Browser
   │
   └─ Dashboard pago
          │
-         ├─ GET /api/analyze
-         └─ GET /api/owner-quality
+         └─ GET /api/analyze
                 │
                 ├─ valida sessão Supabase
                 ├─ valida assinatura active/trialing ou acesso administrativo
@@ -89,17 +88,14 @@ A apresentação dos métodos é **fail-closed**:
 
 ## Processamento resiliente
 
-A análise de owner/organização usa lotes pequenos e concorrência limitada. Cada repositório tem resultado independente: uma indisponibilidade temporária não invalida o restante do lote.
+A análise opera sobre um repositório público por vez.
 
-- resultados já validados são preservados;
-- itens temporariamente indisponíveis entram em uma fila de pendências;
-- a fila é reprocessada automaticamente;
-- a interface acompanha quantidade validada, total e percentual;
-- durante a execução, a média é explicitamente parcial;
-- a média final só existe quando todas as pendências foram validadas;
+- entradas aceitas: `owner/repository` ou URL completa do GitHub;
+- owner isolado e nome de projeto não são aceitos;
+- etapas temporariamente indisponíveis retornam estado `waiting` e são retomadas automaticamente pela interface;
 - evidência dinâmica de CI indisponível nunca é convertida automaticamente em sucesso ou reprovação.
 
-As APIs não devolvem detalhes técnicos de falhas externas para a interface. Estados operacionais previsíveis (`waiting`, `not_found` e `input`) orientam a UI. O dashboard mantém mensagens neutras e retoma automaticamente as etapas transitórias.
+As APIs não devolvem detalhes técnicos de falhas externas para a interface. Estados operacionais previsíveis (`waiting`, `not_found` e `input`) orientam a UI.
 
 ## Segurança
 

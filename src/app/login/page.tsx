@@ -57,7 +57,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   <small>{signInMode ? 'Sua assinatura ou acesso administrativo é validado automaticamente.' : 'Pagamento seguro processado pelo Stripe.'}</small>
                 </span>
               </div>
-              <div><strong>3</strong><span><b>Analise</b><small>Repositórios, owners e projetos públicos.</small></span></div>
+              <div><strong>3</strong><span><b>Analise</b><small>Repositórios públicos do GitHub.</small></span></div>
             </div>
           </div>
           <Suspense fallback={<div className={styles.loading}>Carregando acesso…</div>}>

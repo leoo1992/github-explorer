@@ -63,7 +63,7 @@ export default async function HomePage() {
         <div className={styles.steps}>
           <article><span>01</span><h3>{signupReady ? 'Crie sua conta' : 'Entre na sua conta'}</h3><p>{signupReady ? authMethods : 'E-mail e senha.'}</p></article>
           <article><span>02</span><h3>Ative o plano</h3><p>Você é direcionado ao checkout seguro do Stripe. Nenhuma avaliação é liberada antes da confirmação.</p></article>
-          <article><span>03</span><h3>Analise</h3><p>Informe uma URL de repositório, um owner ou apenas o nome de um projeto público.</p></article>
+          <article><span>03</span><h3>Analise</h3><p>Informe owner/repository ou a URL completa de um repositório público do GitHub.</p></article>
         </div>
       </section>
 
@@ -76,7 +76,7 @@ export default async function HomePage() {
         <div className={styles.outputGrid}>
           <article><small>ARQUITETURA</small><h3>4 camadas detectadas</h3><p>API → serviços → persistência → infraestrutura, com tecnologias vinculadas às evidências do código.</p></article>
           <article><small>DEPENDÊNCIAS</small><h3>42 pacotes mapeados</h3><p>Separação entre runtime e desenvolvimento, versão declarada e manifesto de origem.</p></article>
-          <article><small>PORTFÓLIO</small><h3>Análise por owner</h3><p>Resumo dos repositórios públicos para acelerar a investigação técnica, sempre com revisão humana.</p></article>
+          <article><small>REPOSITÓRIO</small><h3>Estrutura técnica detalhada</h3><p>Explore arquivos, dependências, stack, arquitetura e sinais observáveis do repositório analisado.</p></article>
         </div>
       </section>
 

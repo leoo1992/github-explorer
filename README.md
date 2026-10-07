@@ -12,13 +12,11 @@ RepoScope transforma repositórios públicos do GitHub em sinais observáveis de
 
 Não existe análise gratuita no fluxo atual.
 
-## Formas de análise
+## Forma de análise
 
-- **Repositório** — `owner/repository` ou URL completa do GitHub;
-- **Owner / organização** — owner ou URL de perfil para análise em lote dos repositórios públicos;
-- **Nome do projeto** — busca a correspondência pública mais relevante antes de analisar.
+- **Repositório** — informe `owner/repository` ou a URL completa de um repositório público do GitHub.
 
-Os exemplos exibidos na aplicação usam projetos públicos genéricos, como `vercel/next.js`, `facebook/react` e `django`.
+Os exemplos exibidos na aplicação usam repositórios públicos genéricos, como `vercel/next.js` e `facebook/react`.
 
 ## O que entrega
 
@@ -29,8 +27,6 @@ Os exemplos exibidos na aplicação usam projetos públicos genéricos, como `ve
 - sinais de qualidade como CI, testes, lint, type checking, Docker, lockfile e licença;
 - estrutura de arquivos com busca;
 - inventário de dependências;
-- score agregado dos sinais de qualidade encontrados nos repositórios públicos de um owner;
-- análise concorrente em lotes;
 - tratamento de rate limit e erros da API do GitHub.
 
 O score representa somente sinais técnicos observáveis no repositório. Ele não representa competência profissional, não substitui entrevista técnica e não deve ser usado como decisão automática de contratação.
@@ -123,9 +119,7 @@ A rota de retorno do checkout confirma a sessão no servidor antes de encaminhar
 ## Endpoints protegidos
 
 ```text
-GET /api/analyze?repo=vercel/next.js&mode=repository
-GET /api/analyze?repo=django&mode=project
-GET /api/owner-quality?owner=vercel&offset=0&limit=6
+GET /api/analyze?repo=vercel/next.js
 ```
 
 Sem sessão autenticada retornam `401`. Sem assinatura ativa retornam `402`.
