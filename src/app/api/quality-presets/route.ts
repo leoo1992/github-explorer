@@ -119,6 +119,13 @@ export async function POST(request: NextRequest) {
     ? body!.criteriaIds.filter((value): value is string => typeof value === 'string')
     : [];
 
+  if (!requestedIds.length) {
+    return Response.json(
+      { error: 'Selecione ao menos um critério para o preset.' },
+      { status: 422 },
+    );
+  }
+
   const sanitized = sanitizeQualityCriteriaIds(requestedIds);
   const criteriaIds = language
     ? filterQualityCriteriaIdsForLanguages(sanitized, [language])
