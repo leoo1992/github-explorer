@@ -98,6 +98,7 @@ export function AppNavigation({
     if (pathname === '/dashboard' && item.dashboardView && onDashboardViewChange) {
       return (
         <button
+          key={mobile ? item.key : undefined}
           className={className}
           type="button"
           onClick={() => onDashboardViewChange(item.dashboardView!)}
@@ -111,6 +112,7 @@ export function AppNavigation({
 
     return (
       <Link
+        key={mobile ? item.key : undefined}
         className={className}
         href={item.href}
         aria-current={active ? 'page' : undefined}
@@ -158,9 +160,7 @@ export function AppNavigation({
       </header>
 
       <nav className={['dock', styles.mobileDock].join(' ')} aria-label="Navegação principal">
-        {items.slice(0, 5).map((item) => (
-          <div key={item.key}>{renderItem(item, true)}</div>
-        ))}
+        {items.slice(0, 5).map((item) => renderItem(item, true))}
       </nav>
     </>
   );
