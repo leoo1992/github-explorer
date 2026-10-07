@@ -12,7 +12,7 @@ export default async function PresetsPage() {
   const access = await getAccessState();
 
   if (!access.user) redirect('/login?mode=login&next=/presets');
-  if (!access.paid) redirect('/pricing');
+  if (!access.paid && !access.admin) redirect('/pricing');
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -34,5 +34,5 @@ export default async function PresetsPage() {
     updatedAt: preset.updated_at as string,
   }));
 
-  return <PresetManagerPage initialPresets={initialPresets} />;
+  return <PresetManagerPage initialPresets={initialPresets} admin={access.admin} />;
 }
