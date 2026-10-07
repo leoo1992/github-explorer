@@ -2,14 +2,17 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { BrandIcon } from '@/components/brand-icon';
 import {
   DEFAULT_QUALITY_CRITERIA_IDS,
   QUALITY_CRITERIA,
+  QUALITY_LANGUAGES,
   QUALITY_PRESETS,
   calculateQualityScore,
+  qualityCriteriaForLanguage,
   qualityCriterionLabels,
+  type QualityLanguage,
 } from '@/lib/quality-criteria';
 import type { RecentAnalysis } from '@/lib/usage';
 import type {
@@ -25,6 +28,15 @@ type AnalysisState = 'idle' | 'running' | 'waiting' | 'complete' | 'empty';
 type AnalysisControl = {
   state?: 'waiting' | 'not_found' | 'input';
   retryAfterMs?: number;
+};
+
+type CustomQualityPreset = {
+  id: string;
+  name: string;
+  language: QualityLanguage | null;
+  criteriaIds: string[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 const repositoryInput = {
@@ -73,8 +85,9 @@ function delay(ms: number, signal: AbortSignal) {
 }
 
 function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds: string[] }) {
-  const score = calculateQualityScore(data.qualitySignals, criteriaIds);
-  const labels = qualityCriterionLabels(criteriaIds);
+  const repositoryLanguages = data.languages.map((language) => language.name);
+  const score = calculateQualityScore(data.qualitySignals, criteriaIds, repositoryLanguages);
+  const labels = qualityCriterionLabels(criteriaIds, repositoryLanguages);
   const visibleSignals = data.qualitySignals.filter((signal) => labels.has(signal.label));
 
   return (
@@ -111,7 +124,7 @@ function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds
         </article>
 
         <article className="panel wide">
-          <div className="panel-head"><div><p>Engineering signals</p><h2>Critérios considerados na nota</h2></div><span className="criteria-count">{criteriaIds.length} selecionados</span></div>
+          <div className="panel-head"><div><p>Engineering signals</p><h2>Critérios considerados na nota</h2></div><span className="criteria-count">{visibleSignals.length} aplicáveis · {criteriaIds.length} selecionados</span></div>
           <div className="quality-grid">
             {visibleSignals.map((signal) => (
               <div className={signal.found ? 'quality-card quality-ok' : 'quality-card'} key={signal.label}>
@@ -176,13 +189,52 @@ function Dependencies({ items }: { items: DependencyItem[] }) {
   );
 }
 
-function CriteriaSelector({ selected, setSelected, disabled }: {
+function CriteriaSelector({
+  selected,
+  setSelected,
+  disabled,
+  presetAccess,
+}: {
   selected: string[];
   setSelected: (ids: string[]) => void;
   disabled: boolean;
+  presetAccess: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const groups = [...new Set(QUALITY_CRITERIA.map((criterion) => criterion.group))];
+  const [languageFilter, setLanguageFilter] = useState<'all' | 'global' | QualityLanguage>('all');
+  const [customPresets, setCustomPresets] = useState<CustomQualityPreset[]>([]);
+  const [presetName, setPresetName] = useState('');
+  const [presetLanguage, setPresetLanguage] = useState<QualityLanguage | ''>('');
+  const [presetBusy, setPresetBusy] = useState(false);
+  const [presetMessage, setPresetMessage] = useState('');
+
+  useEffect(() => {
+    if (!presetAccess) return;
+    let active = true;
+
+    void fetch('/api/quality-presets', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return await response.json() as { presets: CustomQualityPreset[] };
+      })
+      .then((body) => {
+        if (active && body?.presets) setCustomPresets(body.presets);
+      })
+      .catch(() => {
+        if (active) setPresetMessage('Não foi possível carregar seus presets agora.');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [presetAccess]);
+
+  const visibleCriteria = QUALITY_CRITERIA.filter((criterion) => {
+    if (languageFilter === 'all') return true;
+    if (languageFilter === 'global') return !criterion.languages?.length;
+    return !criterion.languages?.length || criterion.languages.includes(languageFilter);
+  });
+  const groups = [...new Set(visibleCriteria.map((criterion) => criterion.group))];
 
   function toggle(id: string) {
     if (disabled) return;
@@ -194,10 +246,78 @@ function CriteriaSelector({ selected, setSelected, disabled }: {
     }
   }
 
+  function applyCustomPreset(preset: CustomQualityPreset) {
+    if (disabled) return;
+    setSelected([...preset.criteriaIds]);
+    setLanguageFilter(preset.language ?? 'all');
+    setPresetMessage(`Preset "${preset.name}" aplicado.`);
+  }
+
+  async function savePreset() {
+    const name = presetName.trim();
+    if (!name || disabled || presetBusy) return;
+
+    setPresetBusy(true);
+    setPresetMessage('');
+
+    try {
+      const response = await fetch('/api/quality-presets', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          language: presetLanguage || null,
+          criteriaIds: selected,
+        }),
+      });
+      const body = await response.json() as { preset?: CustomQualityPreset; error?: string };
+
+      if (!response.ok || !body.preset) {
+        setPresetMessage(body.error ?? 'Não foi possível salvar o preset.');
+        return;
+      }
+
+      setCustomPresets((current) => [
+        body.preset!,
+        ...current.filter((item) => item.id !== body.preset!.id),
+      ]);
+      setSelected([...body.preset.criteriaIds]);
+      setPresetName('');
+      setPresetMessage('Preset salvo e pronto para uso.');
+    } catch {
+      setPresetMessage('Não foi possível salvar o preset agora.');
+    } finally {
+      setPresetBusy(false);
+    }
+  }
+
+  async function deletePreset(id: string) {
+    if (disabled || presetBusy) return;
+    setPresetBusy(true);
+    setPresetMessage('');
+
+    try {
+      const response = await fetch(`/api/quality-presets?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { error?: string } | null;
+        setPresetMessage(body?.error ?? 'Não foi possível remover o preset.');
+        return;
+      }
+      setCustomPresets((current) => current.filter((item) => item.id !== id));
+      setPresetMessage('Preset removido.');
+    } catch {
+      setPresetMessage('Não foi possível remover o preset agora.');
+    } finally {
+      setPresetBusy(false);
+    }
+  }
+
   return (
     <div className="criteria-selector">
       <button className="criteria-trigger" type="button" onClick={() => setOpen((value) => !value)} disabled={disabled} aria-expanded={open}>
-        <span><strong>Critérios da nota</strong><small>{selected.length} de {QUALITY_CRITERIA.length} entram no cálculo</small></span>
+        <span><strong>Critérios da nota</strong><small>{selected.length} selecionados · {QUALITY_CRITERIA.length} disponíveis</small></span>
         <b>{open ? '−' : '+'}</b>
       </button>
       {open ? <div className="criteria-panel">
@@ -207,13 +327,107 @@ function CriteriaSelector({ selected, setSelected, disabled }: {
             <button key={key} type="button" disabled={disabled} onClick={() => setSelected([...preset.ids])}>{preset.label}</button>
           ))}
         </div>
+
+        <div className="criteria-toolbar">
+          <label>
+            <span>Exibir critérios</span>
+            <select
+              value={languageFilter}
+              disabled={disabled}
+              onChange={(event) => setLanguageFilter(event.target.value as 'all' | 'global' | QualityLanguage)}
+            >
+              <option value="all">Todas as linguagens</option>
+              <option value="global">Somente globais</option>
+              {QUALITY_LANGUAGES.map((language) => <option value={language} key={language}>{language}</option>)}
+            </select>
+          </label>
+          {languageFilter !== 'all' && languageFilter !== 'global' ? (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setSelected(qualityCriteriaForLanguage(languageFilter))}
+            >
+              Selecionar globais + {languageFilter}
+            </button>
+          ) : null}
+        </div>
+
+        {presetAccess ? <div className="preset-manager">
+          <div className="preset-head">
+            <div><strong>Meus presets</strong><small>Exclusivo do plano ativo · até 20 presets</small></div>
+            <span>{customPresets.length}/20</span>
+          </div>
+
+          {customPresets.length ? <div className="custom-preset-list">
+            {customPresets.map((preset) => (
+              <div className="custom-preset-row" key={preset.id}>
+                <button type="button" disabled={disabled || presetBusy} onClick={() => applyCustomPreset(preset)}>
+                  <strong>{preset.name}</strong>
+                  <small>{preset.language ?? 'Geral'} · {preset.criteriaIds.length} critérios</small>
+                </button>
+                <button
+                  className="preset-delete"
+                  type="button"
+                  aria-label={`Remover preset ${preset.name}`}
+                  disabled={disabled || presetBusy}
+                  onClick={() => void deletePreset(preset.id)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div> : <small className="preset-empty">Você ainda não criou presets personalizados.</small>}
+
+          <div className="preset-editor">
+            <input
+              value={presetName}
+              maxLength={60}
+              placeholder="Nome do preset"
+              disabled={disabled || presetBusy}
+              onChange={(event) => setPresetName(event.target.value)}
+            />
+            <select
+              value={presetLanguage}
+              disabled={disabled || presetBusy}
+              onChange={(event) => setPresetLanguage(event.target.value as QualityLanguage | '')}
+            >
+              <option value="">Geral / multilíngue</option>
+              {QUALITY_LANGUAGES.map((language) => <option value={language} key={language}>{language}</option>)}
+            </select>
+            {presetLanguage ? (
+              <button
+                type="button"
+                disabled={disabled || presetBusy}
+                onClick={() => {
+                  setSelected(qualityCriteriaForLanguage(presetLanguage));
+                  setLanguageFilter(presetLanguage);
+                }}
+              >
+                Montar por linguagem
+              </button>
+            ) : null}
+            <button
+              className="preset-save"
+              type="button"
+              disabled={disabled || presetBusy || !presetName.trim()}
+              onClick={() => void savePreset()}
+            >
+              {presetBusy ? 'Salvando…' : 'Salvar seleção como preset'}
+            </button>
+          </div>
+          {presetMessage ? <small className="preset-message">{presetMessage}</small> : null}
+        </div> : null}
+
         {groups.map((group) => <div className="criteria-group" key={group}>
           <strong>{group}</strong>
           <div className="criteria-grid">
-            {QUALITY_CRITERIA.filter((criterion) => criterion.group === group).map((criterion) => (
+            {visibleCriteria.filter((criterion) => criterion.group === group).map((criterion) => (
               <label className={selected.includes(criterion.id) ? 'criterion checked' : 'criterion'} key={criterion.id}>
                 <input type="checkbox" checked={selected.includes(criterion.id)} disabled={disabled} onChange={() => toggle(criterion.id)} />
-                <span><b>{criterion.label}</b><small>{criterion.description}</small></span>
+                <span>
+                  <b>{criterion.label}</b>
+                  <small>{criterion.description} · {criterion.languages?.length ? criterion.languages.join(', ') : 'Global'}</small>
+                </span>
               </label>
             ))}
           </div>
@@ -410,7 +624,7 @@ export function ExplorerPaid({
                 {loading ? 'Processando…' : 'Analisar repositório'}
               </button>
             </div>
-            <CriteriaSelector selected={selectedCriteria} setSelected={setSelectedCriteria} disabled={loading} />
+            <CriteriaSelector selected={selectedCriteria} setSelected={setSelectedCriteria} disabled={loading} presetAccess={paid || admin} />
             <div className="examples">
               <span>{repositoryInput.hint} Exemplos:</span>
               {repositoryInput.examples.map((example) => (
