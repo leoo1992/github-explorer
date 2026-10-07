@@ -35,6 +35,18 @@ type StackItem = {
 };
 
 const owner = process.env.OWNER || 'leoo1992';
+const batchRepositories = new Set([
+  'taskflow-django',
+  'workflows-poc',
+  'CRUD_Mobile_Login',
+  'GerenciadorContaBanco',
+  'poo-na-pratica',
+  'biblioteca',
+  'GeradorQRCode',
+  'hero-app-front',
+  'inputSvelte',
+  'Kanban_React',
+]);
 const token = process.env.GITHUB_TOKEN?.trim();
 const headers: Record<string, string> = {
   Accept: 'application/vnd.github+json',
@@ -267,6 +279,8 @@ async function analyze(repo: Repo) {
 
   const languages = detectProjectLanguages(projectTree);
   const profile = automaticQualityProfile(languages, stack.map((item) => item.name));
+  const previousToken = process.env.GITHUB_TOKEN;
+  delete process.env.GITHUB_TOKEN;
   const result = await analyzeQualitySignals({
     owner,
     repo: repo.name,
@@ -275,6 +289,7 @@ async function analyze(repo: Repo) {
     dependencies,
     repositoryLicense: repo.license,
   });
+  if (previousToken) process.env.GITHUB_TOKEN = previousToken;
   const quality = calculateQualityScore(result.signals, profile.ids, languages);
   const labels = qualityCriterionLabels(profile.ids, languages);
   const missing = result.signals
@@ -294,7 +309,7 @@ async function analyze(repo: Repo) {
   };
 }
 
-const repos = await listRepos();
+const repos = (await listRepos()).filter((repo) => batchRepositories.has(repo.name));
 const report: Array<Record<string, unknown>> = [];
 
 for (const [index, repo] of repos.entries()) {
