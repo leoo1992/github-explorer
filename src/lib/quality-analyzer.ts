@@ -389,7 +389,8 @@ export async function analyzeQualitySignals(args: {
   const actionsPermissionsExplicit = workflows.length > 0 && workflows.every((file) => workflowHasExplicitPermissions(file.content));
   const recentCommits = commitResult.data ?? [];
   const verifiedCommits = recentCommits.filter((commit) => commit.commit.verification?.verified).length;
-  const commitsSigned = recentCommits.length > 0 && verifiedCommits === recentCommits.length;
+  const latestCommitVerified = Boolean(recentCommits[0]?.commit.verification?.verified);
+  const commitsSigned = recentCommits.length > 0 && latestCommitVerified;
   const alertsAvailable = Array.isArray(dependencyAlertsResult.data);
   const openDependencyAlerts = dependencyAlertsResult.data ?? [];
   const advisoryIds = [...new Set(openDependencyAlerts
@@ -475,7 +476,7 @@ export async function analyzeQualitySignals(args: {
     { label: 'CodeQL configurado', found: hasCodeql, detail: hasCodeql ? `CodeQL detectado em ${codeqlWorkflows.map((file) => file.path).join(', ')}` : 'CodeQL não detectado nos workflows' },
     { label: 'Dependabot configurado', found: hasDependabot, detail: dependabotPath ? `Configuração: ${dependabotPath}` : 'Arquivo .github/dependabot.yml não encontrado' },
     { label: 'Permissões de Actions explícitas', found: actionsPermissionsExplicit, detail: actionsPermissionsExplicit ? 'Todos os workflows analisados declaram permissions e nenhum usa write-all' : 'Há workflow sem permissions explícitas ou usando write-all' },
-    { label: 'Commits assinados', found: commitsSigned, detail: recentCommits.length ? `${verifiedCommits}/${recentCommits.length} commits recentes com assinatura verificada` : 'Não foi possível obter commits recentes', status: recentCommits.length ? undefined : 'unknown' },
+    { label: 'Commits assinados', found: commitsSigned, detail: recentCommits.length ? `${latestCommitVerified ? 'Último commit com assinatura verificada' : 'Último commit sem assinatura verificada'} · ${verifiedCommits}/${recentCommits.length} na amostra recente` : 'Não foi possível obter commits recentes', status: recentCommits.length ? undefined : 'unknown' },
     { label: 'Sem advisories/vulnerabilidades abertas', found: alertsAvailable && openDependencyAlerts.length === 0, detail: alertsAvailable ? (openDependencyAlerts.length ? `${openDependencyAlerts.length} alerta(s) Dependabot aberto(s)` : 'Nenhum alerta Dependabot aberto') : 'API de alertas Dependabot indisponível para este repositório/token', status: alertsAvailable ? undefined : 'unknown' },
     { label: 'Sem indicadores de secrets', found: noSecretIndicators, detail: noSecretIndicators ? 'Nenhum padrão comum de chave, token ou secret foi detectado nos arquivos de configuração analisados' : detectedSecretIndicators.slice(0, 4).join(' · ') },
     { label: 'CONTRIBUTING', found: hasContributing, detail: hasContributing ? 'Guia de contribuição detectado' : 'CONTRIBUTING não encontrado' },
