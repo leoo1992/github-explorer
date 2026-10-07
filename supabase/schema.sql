@@ -85,3 +85,20 @@ on public.quality_presets
 for delete
 to authenticated
 using ((select auth.uid()) = user_id);
+
+
+-- Histórico de análises com nota persistida para busca, paginação e ranking.
+alter table public.usage_events
+  add column if not exists quality_score smallint,
+  add column if not exists quality_profile text;
+
+alter table public.usage_events
+  drop constraint if exists usage_events_quality_score_check;
+
+alter table public.usage_events
+  add constraint usage_events_quality_score_check
+  check (quality_score is null or quality_score between 0 and 100);
+
+create index if not exists usage_events_user_quality_created_idx
+  on public.usage_events (user_id, quality_score desc nulls last, created_at desc)
+  where event_type = 'repository_analysis' and state = 'complete';

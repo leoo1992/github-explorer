@@ -6,7 +6,7 @@ import {
   releaseFreeAnalysisClaim,
 } from '@/lib/entitlements';
 import { analyzeRepository } from '@/lib/github-analyzer';
-import { sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
+import { calculateQualityScore, sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
 import { recordRepositoryUsage } from '@/lib/usage';
 
 export const dynamic = 'force-dynamic';
@@ -65,9 +65,17 @@ export async function GET(request: NextRequest) {
   try {
     const analysis = await analyzeRepository(repo, { criteriaIds, mode, profileLabel });
 
+    const quality = calculateQualityScore(
+      analysis.qualitySignals,
+      analysis.appliedCriteriaIds,
+      analysis.languages.map((language) => language.name),
+    );
+
     await recordRepositoryUsage({
       ...usageBase,
       criteriaCount: analysis.appliedCriteriaIds.length,
+      qualityScore: quality.score,
+      qualityProfile: analysis.qualityProfile,
       state: 'complete',
       durationMs: Date.now() - startedAt,
     });

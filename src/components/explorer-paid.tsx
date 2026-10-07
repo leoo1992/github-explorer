@@ -180,6 +180,119 @@ function Dependencies({ items }: { items: DependencyItem[] }) {
 }
 
 
+
+const RECENT_PAGE_SIZE = 10;
+
+function RecentAnalysesTable({
+  items,
+  loading,
+  onRun,
+}: {
+  items: RecentAnalysis[];
+  loading: boolean;
+  onRun: (item: RecentAnalysis) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return items;
+    return items.filter((item) => {
+      const parsed = parseRecentRepository(item.repository);
+      const repository = parsed ? `${parsed.owner}/${parsed.repository}` : item.repository;
+      return [
+        repository,
+        item.qualityProfile ?? '',
+        item.qualityScore === null ? 'legado' : String(item.qualityScore),
+        formatRecentDate(item.createdAt),
+        String(item.criteriaCount ?? ''),
+      ].some((value) => value.toLowerCase().includes(normalized));
+    });
+  }, [items, query]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / RECENT_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const visible = filtered.slice(
+    (safePage - 1) * RECENT_PAGE_SIZE,
+    safePage * RECENT_PAGE_SIZE,
+  );
+
+  return (
+    <section className="shell recent-analyses">
+      <div className="recent-head">
+        <div><p>HISTÓRICO</p><h2>Suas análises dos últimos 30 dias</h2></div>
+        <span>{filtered.length} de {items.length} análises</span>
+      </div>
+
+      <div className="recent-toolbar">
+        <label>
+          <span>Busca geral</span>
+          <input
+            value={query}
+            placeholder="Repositório, perfil, nota, data ou critérios"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+          />
+        </label>
+        <small>Ordenação padrão: maior qualidade primeiro</small>
+      </div>
+
+      <div className="recent-table-wrap">
+        <table className="recent-table">
+          <thead>
+            <tr>
+              <th>Repositório</th>
+              <th>Qualidade</th>
+              <th>Perfil</th>
+              <th>Critérios</th>
+              <th>Data</th>
+              <th aria-label="Ação" />
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((item) => {
+              const parsed = parseRecentRepository(item.repository);
+              const label = parsed ? `${parsed.owner}/${parsed.repository}` : item.repository;
+              return (
+                <tr key={item.id}>
+                  <td><strong>{label}</strong></td>
+                  <td>
+                    {item.qualityScore === null
+                      ? <span className="quality-score legacy">—</span>
+                      : <span className={item.qualityScore === 100 ? 'quality-score perfect' : 'quality-score'}>{item.qualityScore}%</span>}
+                  </td>
+                  <td>{item.qualityProfile ?? 'Legado'}</td>
+                  <td>{item.criteriaCount ?? '—'}</td>
+                  <td>{formatRecentDate(item.createdAt)}</td>
+                  <td>
+                    <button type="button" disabled={loading} onClick={() => onRun(item)}>
+                      Analisar novamente
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {!visible.length ? (
+              <tr><td className="recent-empty" colSpan={6}>Nenhuma análise encontrada para a busca.</td></tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="recent-pagination">
+        <span>Página {safePage} de {pageCount}</span>
+        <div>
+          <button type="button" disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button>
+          <button type="button" disabled={safePage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Próxima</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ExplorerPaid({
   admin = false,
   paid = false,
@@ -401,24 +514,7 @@ export function ExplorerPaid({
       </section>
 
       {recentAnalyses.length > 0 ? (
-        <section className="shell recent-analyses">
-          <div className="recent-head">
-            <div><p>HISTÓRICO</p><h2>Suas análises dos últimos 30 dias</h2></div>
-            <span>{recentAnalyses.length} análises</span>
-          </div>
-          <div className="recent-list">
-            {recentAnalyses.slice(0, 12).map((item) => {
-              const parsed = parseRecentRepository(item.repository);
-              const label = parsed ? `${parsed.owner}/${parsed.repository}` : item.repository;
-              return (
-                <button type="button" key={item.id} onClick={() => runRecent(item)} disabled={loading}>
-                  <span><strong>{label}</strong><small>{formatRecentDate(item.createdAt)} · {item.criteriaCount ?? '—'} critérios</small></span>
-                  <b>Analisar novamente</b>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        <RecentAnalysesTable items={recentAnalyses} loading={loading} onRun={runRecent} />
       ) : null}
 
       <section className="shell workspace">
