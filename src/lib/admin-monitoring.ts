@@ -1,4 +1,6 @@
 import type { User } from '@supabase/supabase-js';
+import { isCanonicalAdmin } from '@/lib/admin-role';
+import { freeGrantDaysRemaining } from '@/lib/entitlements';
 import { createStripeClient } from '@/lib/stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -11,6 +13,12 @@ type SubscriptionRow = {
   current_period_end: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type EntitlementRow = {
+  user_id: string;
+  admin_free_until: string | null;
+  free_analysis_used_at: string | null;
 };
 
 export type AdminSessionSummary = {
@@ -40,6 +48,9 @@ export type AdminUserSummary = {
   activeSessions: number;
   lastSessionAt: string | null;
   analyses30d: number;
+  freeGrantUntil: string | null;
+  freeGrantDaysRemaining: number;
+  freeAnalysisUsed: boolean;
 };
 
 export type AdminUsageSummary = {
@@ -93,7 +104,7 @@ function sessionActivity(session: AdminSessionSummary) {
 }
 
 function isAdmin(user: User) {
-  return user.app_metadata?.role === 'admin' || user.app_metadata?.billing_exempt === true;
+  return isCanonicalAdmin(user);
 }
 
 export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
@@ -111,6 +122,7 @@ export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
     usage24hResult,
     usage7dResult,
     usage30dResult,
+    entitlementsResult,
   ] = await Promise.all([
     supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     supabase.from('subscriptions').select('*').order('updated_at', { ascending: false }),
@@ -125,12 +137,14 @@ export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
     supabase.from('usage_events').select('*', { count: 'exact', head: true }).gte('created_at', since24h),
     supabase.from('usage_events').select('*', { count: 'exact', head: true }).gte('created_at', since7d),
     supabase.from('usage_events').select('*', { count: 'exact', head: true }).gte('created_at', since30d),
+    supabase.from('user_entitlements').select('user_id,admin_free_until,free_analysis_used_at'),
   ]);
 
   if (usersResult.error) throw new Error(`Falha ao carregar usuários: ${usersResult.error.message}`);
   if (subscriptionsResult.error) throw new Error(`Falha ao carregar assinaturas: ${subscriptionsResult.error.message}`);
   if (sessionsResult.error) throw new Error(`Falha ao carregar sessões: ${sessionsResult.error.message}`);
   if (usageResult.error) throw new Error(`Falha ao carregar consumo: ${usageResult.error.message}`);
+  if (entitlementsResult.error) throw new Error(`Falha ao carregar acessos gratuitos: ${entitlementsResult.error.message}`);
 
   const rawUsers = usersResult.data.users;
   const subscriptions = (subscriptionsResult.data ?? []) as SubscriptionRow[];
@@ -146,6 +160,7 @@ export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
     ip: string | null;
     active: boolean;
   }>;
+  const entitlements = (entitlementsResult.data ?? []) as EntitlementRow[];
   const rawUsage = (usageResult.data ?? []) as Array<{
     id: number;
     user_id: string | null;
@@ -158,6 +173,7 @@ export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
 
   const emailByUserId = new Map(rawUsers.map((user) => [user.id, user.email ?? 'Sem e-mail']));
   const subscriptionByUserId = new Map(subscriptions.map((subscription) => [subscription.user_id, subscription]));
+  const entitlementByUserId = new Map(entitlements.map((entitlement) => [entitlement.user_id, entitlement]));
   const userIdByCustomer = new Map(
     subscriptions
       .filter((subscription) => subscription.stripe_customer_id)
@@ -206,7 +222,9 @@ export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
   const users: AdminUserSummary[] = rawUsers
     .map((user) => {
       const subscription = subscriptionByUserId.get(user.id);
+      const entitlement = entitlementByUserId.get(user.id);
       const sessionStats = sessionStatsByUser.get(user.id);
+      const freeGrantUntil = entitlement?.admin_free_until ?? null;
       return {
         id: user.id,
         email: user.email ?? 'Sem e-mail',
@@ -221,6 +239,9 @@ export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
         activeSessions: sessionStats?.active ?? 0,
         lastSessionAt: sessionStats?.last ?? null,
         analyses30d: usageByUser.get(user.id) ?? 0,
+        freeGrantUntil,
+        freeGrantDaysRemaining: freeGrantDaysRemaining(freeGrantUntil),
+        freeAnalysisUsed: Boolean(entitlement?.free_analysis_used_at),
       } satisfies AdminUserSummary;
     })
     .sort((a, b) => new Date(b.lastSignInAt ?? b.createdAt).getTime() - new Date(a.lastSignInAt ?? a.createdAt).getTime());
