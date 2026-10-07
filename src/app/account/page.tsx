@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { AppNavigation } from '@/components/app-navigation';
 import { BillingPortalButton } from '@/components/billing-portal-button';
 import { getAccessState } from '@/lib/access';
 import styles from './page.module.css';
@@ -47,7 +48,8 @@ export default async function AccountPage() {
           : 'Encerrado';
 
   return (
-    <main className={styles.page}>
+    <main className={[styles.page, 'page-with-dock'].join(' ')}>
+      <AppNavigation admin={access.admin} presetAccess={access.paid || access.admin} />
       <section className={`card ${styles.card}`}>
         <Link href="/dashboard" className={styles.brand}>RepoScope</Link>
         <p className={styles.eyebrow}>CONTA E ACESSO</p>
