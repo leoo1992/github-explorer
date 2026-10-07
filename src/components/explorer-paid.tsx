@@ -11,6 +11,7 @@ import {
   calculateQualityScore,
   qualityCriterionLabels,
 } from '@/lib/quality-criteria';
+import type { RecentAnalysis } from '@/lib/usage';
 import type {
   ArchitectureLayer,
   DependencyItem,
@@ -40,6 +41,24 @@ function isGitHubSegmentValid(value: string) {
 
 function compact(value: number) {
   return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+}
+
+function parseRecentRepository(value: string) {
+  try {
+    const url = new URL(value);
+    const [owner, repository] = url.pathname.split('/').filter(Boolean);
+    return owner && repository ? { owner, repository } : null;
+  } catch {
+    const [owner, repository] = value.split('/').filter(Boolean);
+    return owner && repository ? { owner, repository } : null;
+  }
+}
+
+function formatRecentDate(value: string) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value));
 }
 
 function delay(ms: number, signal: AbortSignal) {
@@ -204,7 +223,19 @@ function CriteriaSelector({ selected, setSelected, disabled }: {
   );
 }
 
-export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
+export function ExplorerPaid({
+  admin = false,
+  paid = false,
+  freeGrantDaysRemaining = 0,
+  freeAnalysisAvailable = false,
+  recentAnalyses = [],
+}: {
+  admin?: boolean;
+  paid?: boolean;
+  freeGrantDaysRemaining?: number;
+  freeAnalysisAvailable?: boolean;
+  recentAnalyses?: RecentAnalysis[];
+}) {
   const router = useRouter();
   const [owner, setOwner] = useState('');
   const [repository, setRepository] = useState('');
@@ -213,6 +244,7 @@ export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
   const [statusMessage, setStatusMessage] = useState('');
   const [tab, setTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(false);
+  const [freeAnalysisRemaining, setFreeAnalysisRemaining] = useState(freeAnalysisAvailable);
   const [selectedCriteria, setSelectedCriteria] = useState<string[]>([...DEFAULT_QUALITY_CRITERIA_IDS]);
   const [appliedCriteria, setAppliedCriteria] = useState<string[]>([...DEFAULT_QUALITY_CRITERIA_IDS]);
   const activeController = useRef<AbortController | null>(null);
@@ -262,6 +294,9 @@ export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
           setRepository(body.repository.name);
           setTab('overview');
           setAnalysisState('complete');
+          if (freeAnalysisRemaining && !paid && freeGrantDaysRemaining === 0 && !admin) {
+            setFreeAnalysisRemaining(false);
+          }
           setLoading(false);
           return;
         }
@@ -271,7 +306,7 @@ export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
           setStatusMessage(
             body.state === 'not_found'
               ? 'Repositório público não encontrado.'
-              : 'Informe owner/repository ou a URL completa de um repositório público do GitHub.',
+              : 'Preencha owner e repositório corretamente.',
           );
           setLoading(false);
           return;
@@ -312,6 +347,12 @@ export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
     );
   }
 
+  function runRecent(item: RecentAnalysis) {
+    const parsed = parseRecentRepository(item.repository);
+    if (!parsed) return;
+    run(parsed.owner, parsed.repository);
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
     run();
@@ -319,6 +360,16 @@ export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
 
   const repositoryReady =
     isGitHubSegmentValid(owner) && isGitHubSegmentValid(repository);
+
+  const accessLabel = admin
+    ? 'ACESSO ADMINISTRATIVO'
+    : freeGrantDaysRemaining > 0
+      ? `ACESSO GRÁTIS · ${freeGrantDaysRemaining} DIAS RESTANTES`
+      : paid
+        ? 'PLANO ATIVO'
+        : freeAnalysisRemaining
+          ? '1 ANÁLISE GRATUITA DISPONÍVEL'
+          : 'ANÁLISE GRATUITA UTILIZADA';
 
   return (
     <main>
@@ -328,7 +379,7 @@ export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
           <div className="repo-actions">{admin ? <Link className="secondary-action" href="/admin">Admin</Link> : null}<Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
         </div>
         <div className="hero-content shell">
-          <div className="hero-copy"><p className="eyebrow">ASSINATURA ATIVA</p><h1>Avalie repositórios públicos com evidências técnicas.</h1><p>Informe um repositório público do GitHub e escolha quais sinais entram no cálculo. Etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>
+          <div className="hero-copy"><p className="eyebrow">{accessLabel}</p><h1>Avalie repositórios públicos com evidências técnicas.</h1><p>Informe um repositório público do GitHub e escolha quais sinais entram no cálculo. Etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>
           <form className="repo-form" onSubmit={submit}>
             <div className="repo-input">
               <div className="repository-address" aria-label="Endereço do repositório no GitHub">
@@ -376,6 +427,27 @@ export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
           </form>
         </div>
       </section>
+
+      {recentAnalyses.length > 0 ? (
+        <section className="shell recent-analyses">
+          <div className="recent-head">
+            <div><p>HISTÓRICO</p><h2>Suas análises dos últimos 30 dias</h2></div>
+            <span>{recentAnalyses.length} análises</span>
+          </div>
+          <div className="recent-list">
+            {recentAnalyses.slice(0, 12).map((item) => {
+              const parsed = parseRecentRepository(item.repository);
+              const label = parsed ? `${parsed.owner}/${parsed.repository}` : item.repository;
+              return (
+                <button type="button" key={item.id} onClick={() => runRecent(item)} disabled={loading}>
+                  <span><strong>{label}</strong><small>{formatRecentDate(item.createdAt)} · {item.criteriaCount ?? '—'} critérios</small></span>
+                  <b>Analisar novamente</b>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="shell workspace">
         {loading ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>A análise é retomada automaticamente sempre que uma etapa precisa aguardar.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
