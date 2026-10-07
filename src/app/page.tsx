@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandIcon } from '@/components/brand-icon';
 import { describeAuthMethods, getAuthProviderAvailability } from '@/lib/auth-providers';
 import styles from './home.module.css';
 
@@ -23,7 +24,7 @@ export default async function HomePage() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <Link href="/" className={styles.brand}><span>RS</span><div><strong>RepoScope</strong><small>Engineering Intelligence</small></div></Link>
+        <Link href="/" className={styles.brand}><BrandIcon className={styles.brandIcon} /><div><strong>RepoScope</strong><small>Engineering Intelligence</small></div></Link>
         <nav>
           <a href="#como-funciona">Como funciona</a>
           <a href="#exemplo">Exemplo</a>
