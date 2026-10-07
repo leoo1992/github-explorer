@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { ArrowDown, BookMarked, Check, File, Folder, Minus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useRef, useState } from 'react';
@@ -8,7 +7,7 @@ import {
   AnalysisProfileSelector,
   type AnalysisProfileSelection,
 } from '@/components/analysis-profile-selector';
-import { BrandIcon } from '@/components/brand-icon';
+import { AppNavigation } from '@/components/app-navigation';
 import {
   DEFAULT_QUALITY_CRITERIA_IDS,
   calculateQualityScore,
@@ -23,6 +22,7 @@ import type {
 } from '@/types/repository';
 
 type Tab = 'overview' | 'architecture' | 'files' | 'dependencies';
+type WorkspaceView = 'analyze' | 'history' | 'result';
 type AnalysisState = 'idle' | 'running' | 'waiting' | 'complete' | 'empty';
 
 type AnalysisControl = {
@@ -220,7 +220,7 @@ function RecentAnalysesTable({
   );
 
   return (
-    <section className="card shell recent-analyses">
+    <section className="card recent-analyses">
       <div className="recent-head">
         <div><p>HISTÓRICO</p><h2>Suas análises dos últimos 30 dias</h2></div>
         <span>{filtered.length} de {items.length} análises</span>
@@ -314,6 +314,7 @@ export function ExplorerPaid({
   const [analysisState, setAnalysisState] = useState<AnalysisState>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [tab, setTab] = useState<Tab>('overview');
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('analyze');
   const [loading, setLoading] = useState(false);
   const [freeAnalysisRemaining, setFreeAnalysisRemaining] = useState(freeAnalysisAvailable);
   const [profileSelection, setProfileSelection] = useState<AnalysisProfileSelection>({
@@ -376,6 +377,7 @@ export function ExplorerPaid({
           setOwner(body.repository.owner);
           setRepository(body.repository.name);
           setTab('overview');
+          setWorkspaceView('result');
           setAnalysisState('complete');
           if (freeAnalysisRemaining && !paid && freeGrantDaysRemaining === 0 && !admin) {
             setFreeAnalysisRemaining(false);
@@ -427,6 +429,7 @@ export function ExplorerPaid({
     setOwner(normalizedOwner);
     setRepository(normalizedRepository);
     setStatusMessage('');
+    setWorkspaceView('result');
     void analyzeRepository(
       `https://github.com/${normalizedOwner}/${normalizedRepository}`,
       selectionSnapshot,
@@ -458,79 +461,207 @@ export function ExplorerPaid({
           : 'ANÁLISE GRATUITA UTILIZADA';
 
   return (
-    <main>
-      <section className="analysis-hero">
-        <div className="topbar shell theme-header">
-          <Link className="brand" href="/"><BrandIcon className="brand-mark" /><span><strong>RepoScope</strong><small>Engineering Intelligence</small></span></Link>
-          <div className="repo-actions">{admin ? <Link className="btn btn-ghost btn-sm secondary-action" href="/admin">Admin</Link> : null}{paid || admin ? <Link className="btn btn-ghost btn-sm secondary-action" href="/presets">Presets</Link> : null}<Link className="btn btn-ghost btn-sm secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="btn btn-ghost btn-sm secondary-action" type="submit">Sair</button></form></div>
-        </div>
-        <div className="analysis-hero-content shell">
-          <div className="hero-copy"><p className="eyebrow">{accessLabel}</p><h1>Uma visão técnica do seu repositório.</h1><p>Explore a arquitetura, as dependências e a qualidade do código em um só lugar.</p></div>
-          <form className="repo-form" onSubmit={submit}>
-            <div className="repo-input">
-              <div className="repository-address" aria-label="Endereço do repositório no GitHub">
-                <span className="repository-prefix">https://github.com/</span>
-                <input className="input input-bordered w-full"
-                  aria-label="Owner do GitHub"
-                  value={owner}
-                  onChange={(event) => setOwner(event.target.value.replace(/\//g, ''))}
-                  placeholder="owner"
-                  spellCheck={false}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  disabled={loading}
-                />
-                <span className="repository-slash">/</span>
-                <input className="input input-bordered w-full"
-                  aria-label="Nome do repositório"
-                  value={repository}
-                  onChange={(event) => setRepository(event.target.value.replace(/\//g, ''))}
-                  placeholder="repositorio"
-                  spellCheck={false}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  disabled={loading}
-                />
-              </div>
-              <button className="btn btn-primary" type="submit" disabled={loading || !repositoryReady}>
-                {loading ? 'Processando…' : 'Analisar repositório'}
-              </button>
+    <main className="app-main">
+      <AppNavigation
+        admin={admin}
+        presetAccess={paid || admin}
+        dashboardView={workspaceView}
+        onDashboardViewChange={(view) => setWorkspaceView(view)}
+      />
+
+      <div className="shell dashboard-shell">
+        <nav className="tabs tabs-box dashboard-view-tabs" role="tablist" aria-label="Áreas do dashboard">
+          <button
+            className={workspaceView === 'analyze' ? 'tab tab-active' : 'tab'}
+            type="button"
+            role="tab"
+            aria-selected={workspaceView === 'analyze'}
+            onClick={() => setWorkspaceView('analyze')}
+          >
+            Analisar
+          </button>
+          <button
+            className={workspaceView === 'history' ? 'tab tab-active' : 'tab'}
+            type="button"
+            role="tab"
+            aria-selected={workspaceView === 'history'}
+            onClick={() => setWorkspaceView('history')}
+          >
+            Histórico
+            {recentAnalyses.length > 0 ? <span className="badge badge-sm badge-ghost">{recentAnalyses.length}</span> : null}
+          </button>
+          <button
+            className={workspaceView === 'result' ? 'tab tab-active' : 'tab'}
+            type="button"
+            role="tab"
+            aria-selected={workspaceView === 'result'}
+            disabled={!analysis && !loading}
+            onClick={() => setWorkspaceView('result')}
+          >
+            Resultado
+          </button>
+        </nav>
+
+        {workspaceView === 'analyze' ? (
+          <section className="card dashboard-control">
+            <div className="dashboard-control-copy">
+              <p className="eyebrow">{accessLabel}</p>
+              <h1>Analisar repositório</h1>
+              <p>Informe owner e repositório. A avaliação usa apenas sinais públicos do GitHub.</p>
             </div>
-            <AnalysisProfileSelector disabled={loading} presetAccess={paid || admin} onChange={setProfileSelection} />
-            <div className="examples">
-              <span>{repositoryInput.hint} Exemplos:</span>
-              {repositoryInput.examples.map((example) => (
-                <button className="btn btn-ghost btn-sm"
-                  key={`${example.owner}/${example.repository}`}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => run(example.owner, example.repository)}
-                >
-                  {example.owner}/{example.repository}
+
+            <form className="repo-form dashboard-repo-form" onSubmit={submit}>
+              <div className="repo-input">
+                <div className="repository-address" aria-label="Endereço do repositório no GitHub">
+                  <span className="repository-prefix">https://github.com/</span>
+                  <input
+                    className="input input-bordered w-full"
+                    aria-label="Owner do GitHub"
+                    value={owner}
+                    onChange={(event) => setOwner(event.target.value.replace(/\//g, ''))}
+                    placeholder="owner"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    disabled={loading}
+                  />
+                  <span className="repository-slash">/</span>
+                  <input
+                    className="input input-bordered w-full"
+                    aria-label="Nome do repositório"
+                    value={repository}
+                    onChange={(event) => setRepository(event.target.value.replace(/\//g, ''))}
+                    placeholder="repositorio"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    disabled={loading}
+                  />
+                </div>
+                <button className="btn btn-primary" type="submit" disabled={loading || !repositoryReady}>
+                  {loading ? 'Processando…' : 'Analisar'}
                 </button>
-              ))}
-            </div>
-          </form>
-        </div>
-      </section>
+              </div>
 
-      {recentAnalyses.length > 0 ? (
-        <RecentAnalysesTable items={recentAnalyses} loading={loading} onRun={runRecent} />
-      ) : null}
+              <AnalysisProfileSelector
+                disabled={loading}
+                presetAccess={paid || admin}
+                onChange={setProfileSelection}
+              />
 
-      <section className="shell workspace">
-        {loading ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>A análise é retomada automaticamente sempre que uma etapa precisa aguardar.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
-        {!analysis && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Informe um repositório para iniciar.</h2><p>{profileSelection.mode === 'auto' ? 'Modo automático ativo: a stack será detectada e somente critérios compatíveis entrarão na nota.' : `${profileSelection.label}: ${profileSelection.criteriaIds.length} critérios selecionados.`}</p></div> : null}
-        {!analysis && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Preencha owner e repositório para formar uma URL completa do GitHub.</p></div> : null}
-        {analysis ? <>
-          <header className="card repo-header"><div className="repo-identity"><div className="repo-icon"><BookMarked aria-hidden="true" /></div><div><p>{analysis.repository.owner}</p><h2>{analysis.repository.name}</h2><span>{analysis.repository.description ?? 'Sem descrição cadastrada no GitHub.'}</span></div></div><div className="repo-actions"><a className="btn btn-primary primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">Abrir GitHub</a></div><div className="repo-meta"><span><strong>{compact(analysis.repository.stars)}</strong> stars</span><span><strong>{compact(analysis.repository.forks)}</strong> forks</span><span><strong>{analysis.repository.defaultBranch}</strong> branch</span></div></header>
-          <nav className="tabs tabs-box analysis-tabs">{([['overview','Visão geral'],['architecture','Arquitetura'],['files','Arquivos'],['dependencies','Dependências']] as const).map(([value,label]) => <button key={value} type="button" className={tab === value ? 'tab tab-active active' : 'tab'} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{label}</button>)}</nav>
-          {tab === 'overview' ? <Overview data={analysis} criteriaIds={appliedCriteria} /> : null}
-          {tab === 'architecture' ? <Architecture layers={analysis.layers} /> : null}
-          {tab === 'files' ? <Files entries={analysis.tree} truncated={analysis.treeTruncated} /> : null}
-          {tab === 'dependencies' ? <Dependencies items={analysis.dependencies} /> : null}
-        </> : null}
-      </section>
+              <div className="examples">
+                <span>{repositoryInput.hint} Exemplos:</span>
+                {repositoryInput.examples.map((example) => (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    key={example.owner + '/' + example.repository}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => run(example.owner, example.repository)}
+                  >
+                    {example.owner}/{example.repository}
+                  </button>
+                ))}
+              </div>
+            </form>
+          </section>
+        ) : null}
+
+        {workspaceView === 'history' ? (
+          recentAnalyses.length > 0 ? (
+            <RecentAnalysesTable items={recentAnalyses} loading={loading} onRun={runRecent} />
+          ) : (
+            <section className="card empty-landing dashboard-empty">
+              <h2>Nenhuma análise nos últimos 30 dias.</h2>
+              <p>Execute uma análise para começar a montar o histórico.</p>
+            </section>
+          )
+        ) : null}
+
+        {workspaceView === 'result' ? (
+          <section className="workspace dashboard-workspace">
+            {loading ? (
+              <div className="loading-layout">
+                <div className="analysis-status">
+                  <span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} />
+                  <div>
+                    <strong>{statusMessage || 'Preparando análise'}</strong>
+                    <small>A análise é retomada automaticamente quando uma etapa precisa aguardar.</small>
+                  </div>
+                </div>
+                <div className="indeterminate-progress"><span /></div>
+                <div className="skeleton-grid">
+                  {Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}
+                </div>
+              </div>
+            ) : null}
+
+            {!analysis && !loading && analysisState === 'idle' ? (
+              <div className="empty-landing dashboard-empty">
+                <h2>Nenhum resultado carregado.</h2>
+                <p>Abra a aba Analisar e execute uma avaliação.</p>
+              </div>
+            ) : null}
+
+            {!analysis && !loading && analysisState === 'empty' ? (
+              <div className="empty-landing dashboard-empty">
+                <h2>{statusMessage}</h2>
+                <p>Revise owner e repositório e tente novamente.</p>
+              </div>
+            ) : null}
+
+            {analysis ? (
+              <>
+                <header className="card repo-header">
+                  <div className="repo-identity">
+                    <div className="repo-icon"><BookMarked aria-hidden="true" /></div>
+                    <div>
+                      <p>{analysis.repository.owner}</p>
+                      <h2>{analysis.repository.name}</h2>
+                      <span>{analysis.repository.description ?? 'Sem descrição cadastrada no GitHub.'}</span>
+                    </div>
+                  </div>
+                  <div className="repo-actions">
+                    <a className="btn btn-primary primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">
+                      Abrir GitHub
+                    </a>
+                  </div>
+                  <div className="repo-meta">
+                    <span><strong>{compact(analysis.repository.stars)}</strong> stars</span>
+                    <span><strong>{compact(analysis.repository.forks)}</strong> forks</span>
+                    <span><strong>{analysis.repository.defaultBranch}</strong> branch</span>
+                  </div>
+                </header>
+
+                <nav className="tabs tabs-box analysis-tabs" role="tablist" aria-label="Resultado da análise">
+                  {([
+                    ['overview', 'Visão geral'],
+                    ['architecture', 'Arquitetura'],
+                    ['files', 'Arquivos'],
+                    ['dependencies', 'Dependências'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={tab === value ? 'tab tab-active active' : 'tab'}
+                      role="tab"
+                      aria-selected={tab === value}
+                      onClick={() => setTab(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+
+                {tab === 'overview' ? <Overview data={analysis} criteriaIds={appliedCriteria} /> : null}
+                {tab === 'architecture' ? <Architecture layers={analysis.layers} /> : null}
+                {tab === 'files' ? <Files entries={analysis.tree} truncated={analysis.treeTruncated} /> : null}
+                {tab === 'dependencies' ? <Dependencies items={analysis.dependencies} /> : null}
+              </>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
     </main>
   );
 }
