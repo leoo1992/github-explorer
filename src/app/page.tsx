@@ -64,7 +64,7 @@ export default async function HomePage() {
         <div className={styles.steps}>
           <article><span>01</span><h3>{signupReady ? 'Crie sua conta' : 'Entre na sua conta'}</h3><p>{signupReady ? authMethods : 'E-mail e senha.'}</p></article>
           <article><span>02</span><h3>Ative o plano</h3><p>Você é direcionado ao checkout seguro do Stripe. Nenhuma avaliação é liberada antes da confirmação.</p></article>
-          <article><span>03</span><h3>Analise</h3><p>Informe owner/repository ou a URL completa de um repositório público do GitHub.</p></article>
+          <article><span>03</span><h3>Analise</h3><p>Preencha o owner e o nome do repositório; o RepoScope monta automaticamente a URL https://github.com/owner/repositorio.</p></article>
         </div>
       </section>
 
