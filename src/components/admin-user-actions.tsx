@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import styles from './admin-user-actions.module.css';
 
 type AdminUserActionsProps = {
   userId: string;
@@ -14,7 +15,7 @@ export function AdminUserActions({ userId, email, admin }: AdminUserActionsProps
   const [busy, setBusy] = useState<'grant' | 'delete' | null>(null);
   const [error, setError] = useState('');
 
-  if (admin) return <span>Protegido</span>;
+  if (admin) return <span className={styles.protected}>Protegido</span>;
 
   async function grant() {
     setBusy('grant');
@@ -56,8 +57,8 @@ export function AdminUserActions({ userId, email, admin }: AdminUserActionsProps
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+    <div className={styles.actions}>
+      <div className={styles.buttons}>
         <button type="button" onClick={() => void grant()} disabled={busy !== null}>
           {busy === 'grant' ? 'Concedendo…' : 'Dar 30 dias grátis'}
         </button>
@@ -65,7 +66,7 @@ export function AdminUserActions({ userId, email, admin }: AdminUserActionsProps
           {busy === 'delete' ? 'Removendo…' : 'Remover'}
         </button>
       </div>
-      {error ? <small role="alert">{error}</small> : null}
+      {error ? <small className={styles.error} role="alert">{error}</small> : null}
     </div>
   );
 }
