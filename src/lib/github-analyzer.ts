@@ -479,7 +479,7 @@ export async function analyzeRepository(
         label: options.profileLabel?.trim() || 'Seleção personalizada',
       };
   const appliedCriteriaIds = profile.ids;
-  const { signals, remaining: qualityRemaining } = await analyzeQualitySignals({
+  const { signals, security, remaining: qualityRemaining } = await analyzeQualitySignals({
     owner,
     repo,
     defaultBranch: repository.default_branch,
@@ -529,6 +529,7 @@ export async function analyzeRepository(
     qualitySignals: signals,
     appliedCriteriaIds,
     qualityProfile: profile.label,
+    security,
     dependencies,
     tree: visibleTree,
     totals: {
