@@ -399,3 +399,28 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+.page {
+  padding-top: 0;
+  padding-bottom: 82px;
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding-inline: 0;
+    padding-bottom: 78px;
+  }
+
+  .hero,
+  .metrics,
+  .section,
+  .twoColumns,
+  .footer {
+    width: min(100% - 20px, 1440px);
+  }
+
+  .hero {
+    margin-top: 22px;
+  }
+}
