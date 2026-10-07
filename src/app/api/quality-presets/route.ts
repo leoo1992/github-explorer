@@ -203,6 +203,92 @@ export async function POST(request: NextRequest) {
   );
 }
 
+export async function PATCH(request: NextRequest) {
+  const gate = await requirePaidPresetAccess();
+  if (gate.response) return gate.response;
+
+  const userId = gate.access!.user!.id;
+  const body = await request.json().catch(() => null) as {
+    id?: unknown;
+    name?: unknown;
+    language?: unknown;
+    criteriaIds?: unknown;
+  } | null;
+
+  const id = typeof body?.id === 'string' ? body.id.trim() : '';
+  const name = typeof body?.name === 'string' ? body.name.trim() : '';
+  if (!id || !name || name.length > MAX_NAME_LENGTH) {
+    return Response.json(
+      { error: 'Preset inválido ou nome fora do limite permitido.' },
+      { status: 422 },
+    );
+  }
+
+  const requestedLanguage =
+    typeof body?.language === 'string' && body.language.trim()
+      ? body.language.trim()
+      : null;
+  const language = requestedLanguage ? sanitizeQualityLanguage(requestedLanguage) : null;
+
+  if (requestedLanguage && !language) {
+    return Response.json({ error: 'Linguagem não suportada para preset.' }, { status: 422 });
+  }
+
+  const requestedIds = Array.isArray(body?.criteriaIds)
+    ? body!.criteriaIds.filter((value): value is string => typeof value === 'string')
+    : [];
+
+  if (!requestedIds.length) {
+    return Response.json(
+      { error: 'Selecione ao menos um critério para o preset.' },
+      { status: 422 },
+    );
+  }
+
+  const sanitized = sanitizeQualityCriteriaIds(requestedIds);
+  const criteriaIds = language
+    ? filterQualityCriteriaIdsForLanguages(sanitized, [language])
+    : sanitized;
+
+  if (!criteriaIds.length) {
+    return Response.json(
+      { error: 'Nenhum critério selecionado é aplicável à linguagem escolhida.' },
+      { status: 422 },
+    );
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('quality_presets')
+    .update({
+      name,
+      language,
+      criteria_ids: criteriaIds,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('id, name, language, criteria_ids, created_at, updated_at')
+    .maybeSingle();
+
+  if (error) {
+    const duplicate = error.code === '23505';
+    return Response.json(
+      { error: duplicate ? 'Já existe um preset com esse nome.' : `Não foi possível atualizar o preset: ${error.message}` },
+      { status: duplicate ? 409 : 503 },
+    );
+  }
+
+  if (!data) {
+    return Response.json({ error: 'Preset não encontrado.' }, { status: 404 });
+  }
+
+  return Response.json(
+    { preset: presetDto(data as PresetRow) },
+    { headers: { 'cache-control': 'private, no-store' } },
+  );
+}
+
 export async function DELETE(request: NextRequest) {
   const gate = await requirePaidPresetAccess();
   if (gate.response) return gate.response;
