@@ -153,6 +153,36 @@ function decodeContent(content: GitHubContent) {
   return Buffer.from(content.content.replace(/\n/g, ''), 'base64').toString('utf8');
 }
 
+function isQualityInfrastructurePath(path: string) {
+  const normalized = path.toLowerCase();
+  return normalized.startsWith('quality/') ||
+    normalized === 'tests/repository-quality.test.mjs' ||
+    normalized === '.github/workflows/repository-quality.yml';
+}
+
+function detectProjectLanguages(tree: TreeEntry[]) {
+  const detected = new Set<string>();
+  for (const entry of tree) {
+    if (entry.type !== 'blob') continue;
+    const path = entry.path.toLowerCase();
+    if (/\.(?:js|jsx|mjs|cjs|vue|svelte)$/.test(path)) detected.add('JavaScript');
+    if (/\.(?:ts|tsx)$/.test(path)) detected.add('TypeScript');
+    if (/\.py$/.test(path)) detected.add('Python');
+    if (/\.java$/.test(path)) detected.add('Java');
+    if (/\.cs$/.test(path)) detected.add('C#');
+    if (/\.go$/.test(path)) detected.add('Go');
+    if (/\.rs$/.test(path)) detected.add('Rust');
+    if (/\.php$/.test(path)) detected.add('PHP');
+    if (/\.rb$/.test(path)) detected.add('Ruby');
+    if (/\.kts?$/.test(path)) detected.add('Kotlin');
+    if (/\.swift$/.test(path)) detected.add('Swift');
+    if (/\.dart$/.test(path)) detected.add('Dart');
+    if (/\.(?:cpp|cc|cxx|hpp|hh|hxx)$/.test(path)) detected.add('C++');
+    if (/\.(?:c|h)$/.test(path)) detected.add('C');
+  }
+  return [...detected];
+}
+
 function collectDependencies(
   manifests: Array<{ path: string; data: PackageManifest }>,
 ): DependencyItem[] {
@@ -359,6 +389,9 @@ export async function analyzeRepository(
       size: typeof entry.size === 'number' ? entry.size : null,
     }));
 
+  const projectTree = allTree.filter((entry) => !isQualityInfrastructurePath(entry.path));
+  const projectLanguages = detectProjectLanguages(projectTree);
+
   const totalLanguageBytes = Object.values(languagesResult.data).reduce(
     (total, value) => total + value,
     0,
@@ -371,7 +404,7 @@ export async function analyzeRepository(
     }))
     .sort((a, b) => b.bytes - a.bytes);
 
-  const manifestPaths = allTree
+  const manifestPaths = projectTree
     .filter(
       (entry) =>
         entry.type === 'blob' &&
@@ -402,7 +435,7 @@ export async function analyzeRepository(
     )
   ).filter((item): item is { path: string; data: PackageManifest } => item !== null);
 
-  const ecosystemManifestPaths = allTree
+  const ecosystemManifestPaths = projectTree
     .filter(
       (entry) =>
         entry.type === 'blob' &&
@@ -431,13 +464,13 @@ export async function analyzeRepository(
 
   const dependencies = collectDependencies(manifests);
   const stack = mergeStackItems(
-    detectStack(dependencies, allTree),
-    detectEcosystemStack(allTree, ecosystemManifests),
+    detectStack(dependencies, projectTree),
+    detectEcosystemStack(projectTree, ecosystemManifests),
   );
-  const layers = buildLayers(stack, allTree);
+  const layers = buildLayers(stack, projectTree);
   const profile = options.mode === 'auto'
     ? automaticQualityProfile(
-        languages.map((language) => language.name),
+        projectLanguages,
         stack.map((item) => item.name),
       )
     : {
