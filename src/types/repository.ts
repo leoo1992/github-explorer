@@ -38,10 +38,41 @@ export interface ArchitectureLayer {
   technologies: string[];
 }
 
+export type QualitySignalStatus = 'pass' | 'fail' | 'unknown';
+
+export interface QualityEvidence {
+  kind: 'file' | 'workflow' | 'api' | 'rule';
+  label: string;
+  detail?: string;
+  path?: string;
+  url?: string;
+  positive?: boolean;
+}
+
 export interface QualitySignal {
+  criterionId?: string;
   label: string;
   found: boolean;
   detail: string;
+  status?: QualitySignalStatus;
+  evidence?: QualityEvidence[];
+  remediation?: string;
+}
+
+export interface SecuritySummary {
+  codeql: boolean;
+  dependabot: boolean;
+  actionsPermissionsExplicit: boolean;
+  signedCommits: {
+    verified: number;
+    total: number;
+  };
+  dependencyAlerts: {
+    available: boolean;
+    open: number;
+    advisories: string[];
+  };
+  secretIndicators: string[];
 }
 
 export interface TreeEntry {
@@ -65,6 +96,7 @@ export interface RepositoryAnalysis {
   qualitySignals: QualitySignal[];
   appliedCriteriaIds: string[];
   qualityProfile: string;
+  security: SecuritySummary;
   dependencies: DependencyItem[];
   tree: TreeEntry[];
   totals: {
@@ -76,4 +108,3 @@ export interface RepositoryAnalysis {
   rateLimitRemaining: number | null;
   analyzedAt: string;
 }
-
