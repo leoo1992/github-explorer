@@ -40,7 +40,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               {signInMode
                 ? 'Acesse o RepoScope com sua conta existente.'
                 : signupReady
-                  ? 'Crie sua conta e confirme o e-mail antes de acessar o plano.'
+                  ? 'Crie sua conta, confirme o e-mail e use sua primeira análise válida gratuitamente.'
                   : 'A criação de novas contas está pausada até a confirmação de e-mail estar ativa.'}
             </p>
             <div className={styles.steps}>
@@ -54,8 +54,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               <div>
                 <strong>2</strong>
                 <span>
-                  <b>{signInMode ? 'Acesse seu plano' : 'Escolha o plano'}</b>
-                  <small>{signInMode ? 'Sua assinatura ou acesso administrativo é validado automaticamente.' : 'Pagamento seguro.'}</small>
+                  <b>{signInMode ? 'Acesse seu espaço' : 'Use sua análise grátis'}</b>
+                  <small>{signInMode ? 'Seu acesso é validado automaticamente.' : 'Depois da primeira análise válida, o pagamento é seguro.'}</small>
                 </span>
               </div>
               <div><strong>3</strong><span><b>Analise</b><small>Repositórios públicos do GitHub.</small></span></div>
