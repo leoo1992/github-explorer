@@ -2,7 +2,7 @@
 
 import { ArrowDown, BookMarked, Check, File, Folder, Minus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AnalysisProfileSelector,
   type AnalysisProfileSelection,
@@ -325,6 +325,26 @@ export function ExplorerPaid({
   const [appliedCriteria, setAppliedCriteria] = useState<string[]>([...DEFAULT_QUALITY_CRITERIA_IDS]);
   const activeController = useRef<AbortController | null>(null);
 
+  useEffect(() => {
+    const syncViewFromUrl = () => {
+      const view = new URLSearchParams(window.location.search).get('view');
+      if (view === 'history') setWorkspaceView('history');
+      if (view === 'analyze') setWorkspaceView('analyze');
+    };
+
+    syncViewFromUrl();
+    window.addEventListener('popstate', syncViewFromUrl);
+    return () => window.removeEventListener('popstate', syncViewFromUrl);
+  }, []);
+
+  function selectWorkspaceView(view: WorkspaceView) {
+    setWorkspaceView(view);
+    const url = new URL(window.location.href);
+    if (view === 'history') url.searchParams.set('view', 'history');
+    else url.searchParams.delete('view');
+    window.history.replaceState(null, '', url);
+  }
+
   function startController() {
     activeController.current?.abort();
     const controller = new AbortController();
@@ -377,7 +397,7 @@ export function ExplorerPaid({
           setOwner(body.repository.owner);
           setRepository(body.repository.name);
           setTab('overview');
-          setWorkspaceView('result');
+          selectWorkspaceView('result');
           setAnalysisState('complete');
           if (freeAnalysisRemaining && !paid && freeGrantDaysRemaining === 0 && !admin) {
             setFreeAnalysisRemaining(false);
@@ -429,7 +449,7 @@ export function ExplorerPaid({
     setOwner(normalizedOwner);
     setRepository(normalizedRepository);
     setStatusMessage('');
-    setWorkspaceView('result');
+    selectWorkspaceView('result');
     void analyzeRepository(
       `https://github.com/${normalizedOwner}/${normalizedRepository}`,
       selectionSnapshot,
@@ -466,7 +486,7 @@ export function ExplorerPaid({
         admin={admin}
         presetAccess={paid || admin}
         dashboardView={workspaceView}
-        onDashboardViewChange={(view) => setWorkspaceView(view)}
+        onDashboardViewChange={(view) => selectWorkspaceView(view)}
       />
 
       <div className="shell dashboard-shell">
@@ -476,7 +496,7 @@ export function ExplorerPaid({
             type="button"
             role="tab"
             aria-selected={workspaceView === 'analyze'}
-            onClick={() => setWorkspaceView('analyze')}
+            onClick={() => selectWorkspaceView('analyze')}
           >
             Analisar
           </button>
@@ -485,7 +505,7 @@ export function ExplorerPaid({
             type="button"
             role="tab"
             aria-selected={workspaceView === 'history'}
-            onClick={() => setWorkspaceView('history')}
+            onClick={() => selectWorkspaceView('history')}
           >
             Histórico
             {recentAnalyses.length > 0 ? <span className="badge badge-sm badge-ghost">{recentAnalyses.length}</span> : null}
@@ -496,7 +516,7 @@ export function ExplorerPaid({
             role="tab"
             aria-selected={workspaceView === 'result'}
             disabled={!analysis && !loading}
-            onClick={() => setWorkspaceView('result')}
+            onClick={() => selectWorkspaceView('result')}
           >
             Resultado
           </button>
