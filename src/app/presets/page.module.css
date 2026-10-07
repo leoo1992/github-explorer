@@ -201,6 +201,8 @@
 
 .customCard,
 .customCardActive {
+  display: grid;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--app-border);
   border-radius: 12px;
@@ -215,10 +217,20 @@
 .customCard > button:first-child,
 .customCardActive > button:first-child {
   width: 100%;
+  height: auto;
+  min-height: 72px;
   padding: 12px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  justify-content: stretch;
+  justify-items: start;
   gap: 3px;
+  border-radius: 0;
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .customCard strong,
@@ -234,9 +246,12 @@
 
 .deleteButton {
   width: 100%;
-  min-height: 31px;
+  height: auto;
+  min-height: 40px;
+  padding: 8px 12px;
   border: 0;
   border-top: 1px solid var(--app-border);
+  border-radius: 0;
   background: color-mix(in srgb, var(--red) 4%, transparent);
   color: var(--red);
   font-size: 12px;
