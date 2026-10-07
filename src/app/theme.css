@@ -135,3 +135,213 @@ select option, select optgroup { color: var(--text); background: var(--surface);
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+
+/* Authenticated app shell: route changes stay client-side and functional areas
+   use tabs so each viewport shows one task at a time. */
+.app-main {
+  min-height: 100dvh;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.dashboard-shell {
+  min-height: calc(100dvh - 64px);
+  padding: 14px 0 32px;
+}
+
+.dashboard-view-tabs {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 14px;
+  padding: 4px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  overflow-x: auto;
+  border: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.dashboard-view-tabs .tab {
+  min-height: 38px;
+  gap: 7px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.dashboard-view-tabs .tab-active {
+  color: var(--color-primary-content);
+  background: var(--color-primary);
+}
+
+.dashboard-view-tabs .tab:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
+.dashboard-control {
+  min-height: 0;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(230px, .65fr) minmax(0, 1.35fr);
+  gap: 22px;
+  align-items: start;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.dashboard-control-copy {
+  padding: 5px 0;
+}
+
+.dashboard-control-copy .eyebrow {
+  margin-bottom: 7px;
+}
+
+.dashboard-control-copy h1 {
+  margin: 0 0 8px;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.05;
+  letter-spacing: -.04em;
+}
+
+.dashboard-control-copy > p:last-child {
+  max-width: 430px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.dashboard-repo-form {
+  min-width: 0;
+}
+
+.dashboard-repo-form .analysis-profile-selector {
+  margin-top: 8px;
+}
+
+.dashboard-repo-form .examples {
+  margin-top: 7px;
+}
+
+.dashboard-workspace {
+  padding: 0;
+}
+
+.dashboard-empty {
+  min-height: min(360px, calc(100dvh - 190px));
+  background: var(--surface);
+}
+
+.recent-analyses {
+  width: 100%;
+  margin: 0;
+  padding: 18px;
+}
+
+.dashboard-workspace .analysis-content {
+  padding-bottom: 4px;
+}
+
+@media (min-width: 1024px) and (min-height: 720px) {
+  .dashboard-control {
+    max-height: calc(100dvh - 130px);
+    overflow: auto;
+  }
+
+  .dashboard-workspace .tree-list {
+    max-height: calc(100dvh - 350px);
+  }
+
+  .dashboard-workspace .dependency-table-wrap {
+    max-height: calc(100dvh - 330px);
+    overflow: auto;
+  }
+
+  .recent-table-wrap {
+    max-height: calc(100dvh - 300px);
+    overflow: auto;
+  }
+}
+
+@media (max-width: 820px) {
+  .dashboard-control {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-main,
+  .page-with-dock {
+    padding-bottom: 78px;
+  }
+
+  .dashboard-shell {
+    width: min(100% - 20px, 1180px);
+    min-height: calc(100dvh - 58px);
+    padding-top: 10px;
+    padding-bottom: 14px;
+  }
+
+  .dashboard-view-tabs {
+    width: 100%;
+    top: 58px;
+    margin-bottom: 10px;
+  }
+
+  .dashboard-view-tabs .tab {
+    flex: 1;
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+
+  .dashboard-control {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .dashboard-control-copy h1 {
+    font-size: 24px;
+  }
+
+  .dashboard-control-copy > p:last-child {
+    font-size: 12px;
+  }
+
+  .dashboard-repo-form .repo-input {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-repo-form .repo-input > .repository-address {
+    grid-column: 1;
+  }
+
+  .dashboard-repo-form .repo-input > .btn {
+    width: 100%;
+  }
+
+  .recent-analyses {
+    padding: 14px;
+  }
+
+  .repo-header {
+    padding: 14px;
+  }
+
+  .repo-header > .repo-actions {
+    grid-column: 1 / -1;
+  }
+
+  .repo-header > .repo-actions .btn {
+    width: 100%;
+  }
+}
