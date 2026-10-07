@@ -62,3 +62,39 @@ $$;
 
 revoke all on function public.admin_session_snapshot() from public, anon, authenticated;
 grant execute on function public.admin_session_snapshot() to service_role;
+
+
+-- Access entitlements: one successful free analysis + optional 30-day admin grant.
+create table if not exists public.user_entitlements (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  admin_free_until timestamptz,
+  free_analysis_claimed_at timestamptz,
+  free_analysis_used_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_entitlements enable row level security;
+
+-- Server-only commercial access state.
+revoke all on table public.user_entitlements from public, anon, authenticated;
+grant select, insert, update, delete on table public.user_entitlements to service_role;
+
+-- Used by the protected admin delete action before deleting an Auth user.
+create or replace function public.admin_revoke_user_sessions(target_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = pg_catalog, auth, public
+as $$
+declare
+  removed_count integer;
+begin
+  delete from auth.sessions where user_id = target_user_id;
+  get diagnostics removed_count = row_count;
+  return removed_count;
+end;
+$$;
+
+revoke all on function public.admin_revoke_user_sessions(uuid) from public, anon, authenticated;
+grant execute on function public.admin_revoke_user_sessions(uuid) to service_role;
