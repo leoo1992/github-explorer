@@ -6,6 +6,8 @@ type UsageEventInput = {
   state: 'complete' | 'waiting' | 'not_found' | 'input' | 'error';
   durationMs?: number | null;
   criteriaCount?: number | null;
+  qualityScore?: number | null;
+  qualityProfile?: string | null;
 };
 
 export type RecentAnalysis = {
@@ -14,6 +16,8 @@ export type RecentAnalysis = {
   createdAt: string;
   durationMs: number | null;
   criteriaCount: number | null;
+  qualityScore: number | null;
+  qualityProfile: string | null;
 };
 
 export async function recordRepositoryUsage(input: UsageEventInput) {
@@ -26,6 +30,8 @@ export async function recordRepositoryUsage(input: UsageEventInput) {
       state: input.state,
       duration_ms: input.durationMs ?? null,
       criteria_count: input.criteriaCount ?? null,
+      quality_score: input.qualityScore ?? null,
+      quality_profile: input.qualityProfile ?? null,
     });
 
     if (error) {
@@ -41,14 +47,15 @@ export async function getRecentUserAnalyses(userId: string, days = 30): Promise<
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('usage_events')
-    .select('id,repository,created_at,duration_ms,criteria_count')
+    .select('id,repository,created_at,duration_ms,criteria_count,quality_score,quality_profile')
     .eq('user_id', userId)
     .eq('event_type', 'repository_analysis')
     .eq('state', 'complete')
     .not('repository', 'is', null)
     .gte('created_at', since)
+    .order('quality_score', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(500);
 
   if (error) throw new Error(`Não foi possível carregar as análises recentes: ${error.message}`);
 
@@ -58,5 +65,7 @@ export async function getRecentUserAnalyses(userId: string, days = 30): Promise<
     createdAt: event.created_at as string,
     durationMs: event.duration_ms as number | null,
     criteriaCount: event.criteria_count as number | null,
+    qualityScore: event.quality_score as number | null,
+    qualityProfile: event.quality_profile as string | null,
   }));
 }
