@@ -35,6 +35,18 @@ type StackItem = {
 };
 
 const owner = process.env.OWNER || 'leoo1992';
+const batchRepositories = new Set([
+  'test-curso-dio-IDE-java-intelliJ',
+  'treino-react',
+  'treino-react-com-redux',
+  'Laravel_CRUD',
+  'projetoModelo_Node-React',
+  'treinandoLaravel',
+  'poc-nest',
+  'POC-NEXT-DOG-SOCIAL-NETWORK',
+  'sentinela-sst',
+  'app-fullstack',
+]);
 const token = process.env.GITHUB_TOKEN?.trim();
 const headers: Record<string, string> = {
   Accept: 'application/vnd.github+json',
@@ -297,7 +309,7 @@ async function analyze(repo: Repo) {
   };
 }
 
-const repos = await listRepos();
+const repos = (await listRepos()).filter((repo) => batchRepositories.has(repo.name));
 const report: Array<Record<string, unknown>> = [];
 
 for (const [index, repo] of repos.entries()) {
