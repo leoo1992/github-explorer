@@ -140,7 +140,7 @@ export default async function AdminPage() {
         <article>
           <span>Receita paga · 30 dias</span>
           <strong>{formatMoney(data.metrics.revenue30d, data.metrics.revenueCurrency)}</strong>
-          <small>{data.paymentsAvailable ? 'Faturas Stripe pagas' : 'Stripe indisponível para leitura'}</small>
+          <small>{data.paymentsAvailable ? 'Pagamentos confirmados' : 'Dados de pagamento indisponíveis'}</small>
         </article>
       </section>
 
@@ -241,13 +241,13 @@ export default async function AdminPage() {
         <div className={styles.sectionHead}>
           <div>
             <p>PAGAMENTOS</p>
-            <h2>Faturas recentes do Stripe</h2>
+            <h2>Pagamentos recentes</h2>
           </div>
           <span>{data.payments.length} carregadas</span>
         </div>
 
         {!data.paymentsAvailable ? (
-          <p className={styles.warning}>A chave Stripe atual não permitiu consultar faturas. Assinaturas do Supabase continuam disponíveis na tabela de usuários.</p>
+          <p className={styles.warning}>Não foi possível consultar os pagamentos neste momento. As assinaturas continuam disponíveis na tabela de usuários.</p>
         ) : (
           <div className={styles.tableWrap}>
             <table>
