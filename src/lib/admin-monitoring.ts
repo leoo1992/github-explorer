@@ -255,7 +255,7 @@ export async function getAdminMonitoringData(): Promise<AdminMonitoringData> {
         currency: invoice.currency.toUpperCase(),
         status: invoice.status,
         createdAt,
-        hostedInvoiceUrl: invoice.hosted_invoice_url,
+        hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
       };
     });
   } catch (error) {
