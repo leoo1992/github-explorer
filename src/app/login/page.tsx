@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandIcon } from '@/components/brand-icon';
 import { Suspense } from 'react';
 import { AuthForm } from '@/components/auth-form';
 import { describeAuthMethods, getAuthProviderAvailability } from '@/lib/auth-providers';
@@ -21,7 +22,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <main className={styles.page}>
       <div className={styles.shell}>
         <Link className={styles.brand} href="/">
-          <span>RS</span>
+          <BrandIcon className={styles.brandIcon} />
           <div><strong>RepoScope</strong><small>Engineering Intelligence</small></div>
         </Link>
 
