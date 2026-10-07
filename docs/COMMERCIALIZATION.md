@@ -36,8 +36,7 @@ O sistema não deve anunciar um método de login que não esteja utilizável naq
 ## Entregas do plano
 
 - análise de repositório público;
-- análise agregada de owner/organização;
-- busca por nome de projeto;
+- análise detalhada de um repositório público por vez;
 - stack, linguagens, arquitetura e dependências;
 - sinais de qualidade de engenharia;
 - evidências explicáveis para cada score;
