@@ -132,6 +132,289 @@ export const QUALITY_PRESETS: Record<string, { label: string; ids: string[] }> =
   },
 };
 
+
+export type StandardQualityPreset = {
+  id: string;
+  label: string;
+  description: string;
+  languages?: readonly QualityLanguage[];
+  stacks?: readonly string[];
+  ids: string[];
+};
+
+const BASE_ENGINEERING_IDS = [
+  'no-sensitive-files',
+  'gitignore',
+  'readme',
+  'env-example',
+  'license',
+  'lockfile',
+  'tests-exist',
+  'lint-configured',
+  'formatter',
+  'github-actions',
+  'pipeline-green',
+  'lint-pass',
+  'tests-pass',
+  'build-pass',
+  'coverage-80',
+  'dependency-updates',
+  'dependency-audit',
+];
+
+const EXTENDED_ENGINEERING_IDS = [
+  ...BASE_ENGINEERING_IDS,
+  'architecture',
+  'security-policy',
+  'sast',
+  'secret-scanning',
+  'integration-tests',
+];
+
+function presetIds(...ids: string[][]) {
+  return [...new Set(ids.flat())];
+}
+
+export const STANDARD_QUALITY_PRESETS: StandardQualityPreset[] = [
+  {
+    id: 'javascript',
+    label: 'JavaScript',
+    description: 'Qualidade para projetos JavaScript/Node com lint, testes, build, dependências e segurança.',
+    languages: ['JavaScript'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'node-engine', 'dead-code', 'e2e-tests']),
+  },
+  {
+    id: 'typescript',
+    label: 'TypeScript',
+    description: 'JavaScript tipado com strict mode, type checking e controles de qualidade do ecossistema Node.',
+    languages: ['TypeScript'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code', 'e2e-tests']),
+  },
+  {
+    id: 'nextjs',
+    label: 'Next.js',
+    description: 'Preset para aplicações Next.js com TypeScript/JavaScript, build, E2E, segurança e arquitetura.',
+    languages: ['JavaScript', 'TypeScript'],
+    stacks: ['Next.js'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code', 'e2e-tests']),
+  },
+  {
+    id: 'react',
+    label: 'React',
+    description: 'Preset para frontends React com lint, type checking, testes, build e E2E.',
+    languages: ['JavaScript', 'TypeScript'],
+    stacks: ['React'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code', 'e2e-tests']),
+  },
+  {
+    id: 'vue',
+    label: 'Vue.js',
+    description: 'Preset para frontends Vue com lint, type checking, testes, build e E2E.',
+    languages: ['JavaScript', 'TypeScript'],
+    stacks: ['Vue'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code', 'e2e-tests']),
+  },
+  {
+    id: 'angular',
+    label: 'Angular',
+    description: 'Preset Angular/TypeScript com strict mode, testes, build e E2E.',
+    languages: ['TypeScript'],
+    stacks: ['Angular'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code', 'e2e-tests']),
+  },
+  {
+    id: 'svelte',
+    label: 'Svelte / SvelteKit',
+    description: 'Preset Svelte com TypeScript/JavaScript, lint, testes, build e E2E.',
+    languages: ['JavaScript', 'TypeScript'],
+    stacks: ['Svelte'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code', 'e2e-tests']),
+  },
+  {
+    id: 'nestjs',
+    label: 'NestJS',
+    description: 'Preset para APIs NestJS com TypeScript, testes de integração, segurança e pipeline.',
+    languages: ['TypeScript'],
+    stacks: ['NestJS'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code', 'integration-tests']),
+  },
+  {
+    id: 'node',
+    label: 'Node.js',
+    description: 'Preset para APIs e serviços Node.js.',
+    languages: ['JavaScript', 'TypeScript'],
+    stacks: ['Node.js', 'Express', 'Fastify', 'NestJS'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code', 'integration-tests']),
+  },
+  {
+    id: 'python',
+    label: 'Python',
+    description: 'Preset Python com tipagem, lint, testes, cobertura e auditoria de dependências.',
+    languages: ['Python'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'python-typing', 'dead-code', 'integration-tests']),
+  },
+  {
+    id: 'django',
+    label: 'Django',
+    description: 'Preset para aplicações Django com tipagem Python, integração, segurança e entrega.',
+    languages: ['Python'],
+    stacks: ['Django'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'python-typing', 'dead-code', 'integration-tests', 'e2e-tests']),
+  },
+  {
+    id: 'fastapi',
+    label: 'FastAPI',
+    description: 'Preset para APIs FastAPI com tipagem Python, testes de integração e segurança.',
+    languages: ['Python'],
+    stacks: ['FastAPI'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'python-typing', 'dead-code', 'integration-tests']),
+  },
+  {
+    id: 'java',
+    label: 'Java',
+    description: 'Preset Java com qualidade JVM, testes, build reproduzível e segurança.',
+    languages: ['Java'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['jvm-quality']),
+  },
+  {
+    id: 'spring-boot',
+    label: 'Spring Boot',
+    description: 'Preset Spring Boot com qualidade JVM, testes de integração, SAST e pipeline.',
+    languages: ['Java', 'Kotlin'],
+    stacks: ['Spring Boot'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['jvm-quality', 'integration-tests']),
+  },
+  {
+    id: 'kotlin',
+    label: 'Kotlin',
+    description: 'Preset Kotlin/JVM com Detekt ou ktlint, testes e build.',
+    languages: ['Kotlin'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['jvm-quality']),
+  },
+  {
+    id: 'dotnet',
+    label: '.NET / C#',
+    description: 'Preset .NET com nullable/analyzers, testes, integração e entrega.',
+    languages: ['C#'],
+    stacks: ['.NET'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['dotnet-analyzers', 'integration-tests']),
+  },
+  {
+    id: 'go',
+    label: 'Go',
+    description: 'Preset Go com go vet/golangci-lint, testes, cobertura e pipeline.',
+    languages: ['Go'],
+    stacks: ['Go'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['go-static-analysis', 'integration-tests']),
+  },
+  {
+    id: 'rust',
+    label: 'Rust',
+    description: 'Preset Rust com Clippy, rustfmt, testes e auditoria.',
+    languages: ['Rust'],
+    stacks: ['Rust'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['rust-quality']),
+  },
+  {
+    id: 'php',
+    label: 'PHP',
+    description: 'Preset PHP com PHPStan/Psalm, testes, dependências e segurança.',
+    languages: ['PHP'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'php-static-analysis', 'integration-tests']),
+  },
+  {
+    id: 'laravel',
+    label: 'Laravel',
+    description: 'Preset Laravel com análise estática PHP, integração, E2E e segurança.',
+    languages: ['PHP'],
+    stacks: ['Laravel'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'php-static-analysis', 'integration-tests', 'e2e-tests']),
+  },
+  {
+    id: 'ruby',
+    label: 'Ruby',
+    description: 'Preset Ruby com RuboCop, testes e pipeline.',
+    languages: ['Ruby'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'ruby-lint', 'integration-tests']),
+  },
+  {
+    id: 'rails',
+    label: 'Ruby on Rails',
+    description: 'Preset Rails com RuboCop, integração, E2E e segurança.',
+    languages: ['Ruby'],
+    stacks: ['Ruby on Rails'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'ruby-lint', 'integration-tests', 'e2e-tests']),
+  },
+  {
+    id: 'dart',
+    label: 'Dart',
+    description: 'Preset Dart com analyzer, testes e formatação.',
+    languages: ['Dart'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['dart-analysis']),
+  },
+  {
+    id: 'flutter',
+    label: 'Flutter',
+    description: 'Preset Flutter/Dart com analyzer, testes, build e qualidade de entrega.',
+    languages: ['Dart'],
+    stacks: ['Flutter'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['dart-analysis', 'integration-tests']),
+  },
+  {
+    id: 'swift',
+    label: 'Swift',
+    description: 'Preset Swift com SwiftLint, testes e build.',
+    languages: ['Swift'],
+    ids: presetIds(BASE_ENGINEERING_IDS, ['swift-lint']),
+  },
+  {
+    id: 'native',
+    label: 'C / C++',
+    description: 'Preset C/C++ com clang-tidy/cppcheck, testes e build.',
+    languages: ['C', 'C++'],
+    ids: presetIds(EXTENDED_ENGINEERING_IDS, ['native-static-analysis']),
+  },
+];
+
+export function getStandardQualityPreset(id: string | null | undefined) {
+  return STANDARD_QUALITY_PRESETS.find((preset) => preset.id === id) ?? null;
+}
+
+export function automaticQualityProfile(
+  languages: Iterable<string>,
+  stacks: Iterable<string>,
+) {
+  const normalizedLanguagesSet = normalizedLanguages(languages) ?? new Set<QualityLanguage>();
+  const normalizedStacks = new Set([...stacks].map((stack) => stack.trim().toLowerCase()));
+
+  const frameworkMatches = STANDARD_QUALITY_PRESETS.filter((preset) =>
+    preset.stacks?.some((stack) => normalizedStacks.has(stack.toLowerCase())),
+  );
+  const languageMatches = STANDARD_QUALITY_PRESETS.filter((preset) =>
+    !preset.stacks?.length &&
+    preset.languages?.some((language) => normalizedLanguagesSet.has(language)),
+  );
+
+  const matched = [...frameworkMatches, ...languageMatches].filter(
+    (preset, index, list) => list.findIndex((item) => item.id === preset.id) === index,
+  );
+
+  const ids = matched.length
+    ? [...new Set(matched.flatMap((preset) => preset.ids))]
+    : [...QUALITY_PRESETS.essential.ids];
+
+  const applicableIds = filterQualityCriteriaIdsForLanguages(ids, languages);
+  const prominent = frameworkMatches.length ? frameworkMatches : languageMatches;
+
+  return {
+    ids: applicableIds.length ? applicableIds : [...QUALITY_PRESETS.essential.ids],
+    presetIds: matched.map((preset) => preset.id),
+    label: prominent.length
+      ? `Automático · ${prominent.slice(0, 3).map((preset) => preset.label).join(' + ')}`
+      : 'Automático · Geral',
+  };
+}
+
 export const DEFAULT_QUALITY_CRITERIA_IDS = QUALITY_PRESETS.complete.ids;
 
 export function sanitizeQualityLanguage(value?: string | null): QualityLanguage | null {

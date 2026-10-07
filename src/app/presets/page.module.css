@@ -1,0 +1,424 @@
+.page {
+  min-height: 100vh;
+  padding: 28px clamp(16px, 4vw, 56px) 60px;
+  background: radial-gradient(circle at top, rgba(79,140,255,.10), transparent 34%), var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  width: min(1320px, 100%);
+  margin: 0 auto 38px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  color: var(--text);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 8px;
+}
+
+.topbar nav a {
+  min-height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hero,
+.systemSection,
+.customLayout {
+  width: min(1320px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero {
+  margin-bottom: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 24px;
+}
+
+.hero p,
+.sectionHead p,
+.editorHead p {
+  margin: 0 0 5px;
+  color: var(--cyan);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+
+.hero h1 {
+  margin: 0 0 10px;
+  font-size: clamp(34px, 5vw, 58px);
+  letter-spacing: -.05em;
+}
+
+.hero span {
+  display: block;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.hero button,
+.filterRow button,
+.primary,
+.secondary {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.hero button,
+.primary {
+  color: #fff;
+  border: 0;
+  background: linear-gradient(135deg, var(--violet-2), var(--blue));
+}
+
+.systemSection {
+  margin-bottom: 26px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.sectionHead,
+.editorHead {
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+
+.sectionHead h2,
+.editorHead h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.sectionHead > span,
+.editorHead > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.systemGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.systemCard {
+  min-height: 150px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cardTop strong {
+  font-size: 14px;
+}
+
+.cardTop > span {
+  padding: 4px 6px;
+  color: var(--cyan);
+  border: 1px solid rgba(50,210,201,.25);
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.systemCard p {
+  min-height: 46px;
+  margin: 9px 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.systemCard small {
+  color: var(--muted-2);
+  font-size: 9px;
+}
+
+.tags {
+  margin-bottom: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tags span {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.customLayout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.customList,
+.editor {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.customList {
+  align-self: start;
+  display: grid;
+  gap: 8px;
+}
+
+.customCard,
+.customCardActive {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.customCardActive {
+  border-color: rgba(79,140,255,.55);
+  background: rgba(79,140,255,.08);
+}
+
+.customCard > button:first-child,
+.customCardActive > button:first-child {
+  width: 100%;
+  padding: 12px;
+  display: grid;
+  gap: 3px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.customCard strong,
+.customCardActive strong {
+  font-size: 11px;
+}
+
+.customCard small,
+.customCardActive small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.deleteButton {
+  width: 100%;
+  min-height: 31px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: rgba(255,100,120,.04);
+  color: #ff8c9b;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.empty {
+  padding: 16px;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  font-size: 10px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 10px;
+}
+
+.formGrid label,
+.filterRow label {
+  display: grid;
+  gap: 6px;
+}
+
+.formGrid label > span,
+.filterRow label > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.formGrid input,
+.formGrid select,
+.filterRow select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 11px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  outline: 0;
+  background: var(--surface-2);
+}
+
+.filterRow {
+  margin: 12px 0 18px;
+  display: flex;
+  align-items: end;
+  gap: 9px;
+}
+
+.filterRow label {
+  min-width: 220px;
+}
+
+.filterRow button,
+.secondary {
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+.criteriaGroups {
+  display: grid;
+  gap: 16px;
+}
+
+.criteriaGroup h3 {
+  margin: 0 0 8px;
+  color: #8fb3ff;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.criteriaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.criterion,
+.criterionActive {
+  min-height: 82px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.criterionActive {
+  border-color: rgba(79,140,255,.5);
+  background: rgba(79,140,255,.09);
+}
+
+.criterion input,
+.criterionActive input {
+  margin: 3px 0 0;
+  accent-color: #5d7cff;
+}
+
+.criterion span,
+.criterionActive span {
+  display: grid;
+  gap: 3px;
+}
+
+.criterion strong,
+.criterionActive strong {
+  font-size: 10px;
+}
+
+.criterion small,
+.criterionActive small {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.criterion em,
+.criterionActive em {
+  color: #8fb3ff;
+  font-size: 8px;
+  font-style: normal;
+}
+
+.editorActions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.editorActions [role='status'] {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.primary:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+@media (max-width: 1100px) {
+  .systemGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .criteriaGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 820px) {
+  .hero { align-items: stretch; flex-direction: column; }
+  .hero button { width: 100%; }
+  .systemGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .customLayout { grid-template-columns: 1fr; }
+  .formGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .page { padding-inline: 12px; }
+  .systemGrid,
+  .criteriaGrid { grid-template-columns: 1fr; }
+  .filterRow { align-items: stretch; flex-direction: column; }
+  .filterRow label { min-width: 0; }
+  .filterRow button { width: 100%; }
+}

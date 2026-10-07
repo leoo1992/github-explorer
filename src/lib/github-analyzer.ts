@@ -1,5 +1,9 @@
 import { analyzeQualitySignals } from '@/lib/quality-analyzer';
-import { requiresLiveCiEvidence, sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
+import {
+  automaticQualityProfile,
+  requiresLiveCiEvidence,
+  sanitizeQualityCriteriaIds,
+} from '@/lib/quality-criteria';
 import type {
   ArchitectureLayer,
   DependencyItem,
@@ -43,6 +47,11 @@ interface PackageManifest {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 }
+
+type TextManifest = {
+  path: string;
+  content: string;
+};
 
 const STACK_RULES: Array<{
   name: string;
@@ -192,6 +201,76 @@ function detectStack(
   });
 }
 
+function detectEcosystemStack(tree: TreeEntry[], manifests: TextManifest[]): StackItem[] {
+  const paths = tree.filter((entry) => entry.type === 'blob').map((entry) => entry.path.toLowerCase());
+  const combined = manifests.map((manifest) => manifest.content).join('\n');
+  const detected: StackItem[] = [];
+
+  function add(name: string, category: StackItem['category'], evidence: string) {
+    if (!detected.some((item) => item.name === name)) {
+      detected.push({ name, category, evidence });
+    }
+  }
+
+  if (
+    paths.some((path) => /(^|\/)manage\.py$/.test(path)) &&
+    /\bdjango\b/i.test(combined)
+  ) {
+    add('Django', 'Backend', 'manage.py + dependência Django');
+  }
+
+  if (/\bfastapi\b/i.test(combined)) {
+    add('FastAPI', 'Backend', 'dependência FastAPI');
+  }
+
+  if (/\b(spring-boot|org\.springframework\.boot|springframework\.boot)\b/i.test(combined)) {
+    add('Spring Boot', 'Backend', 'manifesto Spring Boot');
+  }
+
+  if (
+    paths.some((path) => /(^|\/)artisan$/.test(path)) ||
+    /"laravel\/framework"\s*:/i.test(combined)
+  ) {
+    add('Laravel', 'Backend', 'estrutura ou dependência Laravel');
+  }
+
+  if (
+    paths.some((path) => /(^|\/)config\/routes\.rb$/.test(path)) &&
+    /\brails\b/i.test(combined)
+  ) {
+    add('Ruby on Rails', 'Backend', 'routes.rb + dependência Rails');
+  }
+
+  if (paths.some((path) => /\.csproj$/.test(path))) {
+    add('.NET', 'Backend', 'arquivo .csproj');
+  }
+
+  if (
+    paths.some((path) => /(^|\/)\.metadata$/.test(path)) ||
+    /sdk:\s*flutter|flutter:\s*[\r\n]/i.test(combined)
+  ) {
+    add('Flutter', 'Frontend', 'manifesto Flutter');
+  }
+
+  if (paths.some((path) => /(^|\/)go\.mod$/.test(path))) {
+    add('Go', 'Backend', 'go.mod');
+  }
+
+  if (paths.some((path) => /(^|\/)cargo\.toml$/.test(path))) {
+    add('Rust', 'Backend', 'Cargo.toml');
+  }
+
+  return detected;
+}
+
+function mergeStackItems(...groups: StackItem[][]) {
+  const merged = new Map<string, StackItem>();
+  for (const item of groups.flat()) {
+    if (!merged.has(item.name)) merged.set(item.name, item);
+  }
+  return [...merged.values()];
+}
+
 function buildLayers(stack: StackItem[], tree: TreeEntry[]): ArchitectureLayer[] {
   const namesByCategory = (category: StackItem['category']) =>
     stack.filter((item) => item.category === category).map((item) => item.name);
@@ -250,10 +329,13 @@ function buildLayers(stack: StackItem[], tree: TreeEntry[]): ArchitectureLayer[]
 
 export async function analyzeRepository(
   input: string,
-  options: { criteriaIds?: string[] } = {},
+  options: {
+    criteriaIds?: string[];
+    mode?: 'auto' | 'selected';
+    profileLabel?: string;
+  } = {},
 ): Promise<RepositoryAnalysis> {
   const headers = buildHeaders();
-  const criteriaIds = sanitizeQualityCriteriaIds(options.criteriaIds);
   const resolved = resolveRepoInput(input);
   const { owner, repo } = resolved;
   const base = `https://api.github.com/repos/${owner}/${repo}`;
@@ -276,6 +358,18 @@ export async function analyzeRepository(
       type: entry.type as 'blob' | 'tree',
       size: typeof entry.size === 'number' ? entry.size : null,
     }));
+
+  const totalLanguageBytes = Object.values(languagesResult.data).reduce(
+    (total, value) => total + value,
+    0,
+  );
+  const languages: LanguageStat[] = Object.entries(languagesResult.data)
+    .map(([name, bytes]) => ({
+      name,
+      bytes,
+      percentage: totalLanguageBytes > 0 ? (bytes / totalLanguageBytes) * 100 : 0,
+    }))
+    .sort((a, b) => b.bytes - a.bytes);
 
   const manifestPaths = allTree
     .filter(
@@ -308,9 +402,50 @@ export async function analyzeRepository(
     )
   ).filter((item): item is { path: string; data: PackageManifest } => item !== null);
 
+  const ecosystemManifestPaths = allTree
+    .filter(
+      (entry) =>
+        entry.type === 'blob' &&
+        /(^|\/)(pyproject\.toml|requirements[^/]*\.txt|pom\.xml|build\.gradle(?:\.kts)?|composer\.json|gemfile|pubspec\.ya?ml|[^/]+\.csproj|go\.mod|cargo\.toml)$/.test(entry.path.toLowerCase()) &&
+        entry.path.split('/').length <= 5,
+    )
+    .slice(0, 18)
+    .map((entry) => entry.path);
+
+  const ecosystemManifests = (
+    await Promise.all(
+      ecosystemManifestPaths.map(async (path) => {
+        try {
+          const result = await githubFetch<GitHubContent>(
+            `${base}/contents/${encodeURIComponent(path).replace(/%2F/g, '/')}?ref=${encodeURIComponent(repository.default_branch)}`,
+            headers,
+          );
+          const decoded = decodeContent(result.data);
+          return decoded === null ? null : { path, content: decoded };
+        } catch {
+          return null;
+        }
+      }),
+    )
+  ).filter((item): item is TextManifest => item !== null);
+
   const dependencies = collectDependencies(manifests);
-  const stack = detectStack(dependencies, allTree);
+  const stack = mergeStackItems(
+    detectStack(dependencies, allTree),
+    detectEcosystemStack(allTree, ecosystemManifests),
+  );
   const layers = buildLayers(stack, allTree);
+  const profile = options.mode === 'auto'
+    ? automaticQualityProfile(
+        languages.map((language) => language.name),
+        stack.map((item) => item.name),
+      )
+    : {
+        ids: sanitizeQualityCriteriaIds(options.criteriaIds),
+        presetIds: [] as string[],
+        label: options.profileLabel?.trim() || 'Seleção personalizada',
+      };
+  const appliedCriteriaIds = profile.ids;
   const { signals, remaining: qualityRemaining } = await analyzeQualitySignals({
     owner,
     repo,
@@ -323,21 +458,9 @@ export async function analyzeRepository(
   const hasGitHubActions = signals.some(
     (signal) => signal.label === 'GitHub Actions' && signal.found,
   );
-  if (requiresLiveCiEvidence(criteriaIds) && hasGitHubActions && qualityRemaining.length === 0) {
+  if (requiresLiveCiEvidence(appliedCriteriaIds) && hasGitHubActions && qualityRemaining.length === 0) {
     throw new Error('Evidência de CI temporariamente indisponível; reprocessamento necessário.');
   }
-
-  const totalLanguageBytes = Object.values(languagesResult.data).reduce(
-    (total, value) => total + value,
-    0,
-  );
-  const languages: LanguageStat[] = Object.entries(languagesResult.data)
-    .map(([name, bytes]) => ({
-      name,
-      bytes,
-      percentage: totalLanguageBytes > 0 ? (bytes / totalLanguageBytes) * 100 : 0,
-    }))
-    .sort((a, b) => b.bytes - a.bytes);
 
   const visibleTree = allTree
     .filter((entry) => entry.path.split('/').length <= 4)
@@ -371,12 +494,14 @@ export async function analyzeRepository(
     stack,
     layers,
     qualitySignals: signals,
+    appliedCriteriaIds,
+    qualityProfile: profile.label,
     dependencies,
     tree: visibleTree,
     totals: {
       files: allTree.filter((entry) => entry.type === 'blob').length,
       directories: allTree.filter((entry) => entry.type === 'tree').length,
-      manifests: manifests.length,
+      manifests: new Set([...manifestPaths, ...ecosystemManifestPaths]).size,
     },
     treeTruncated: treeResult.data.truncated || visibleTree.length < allTree.length,
     rateLimitRemaining: remainingCandidates.length

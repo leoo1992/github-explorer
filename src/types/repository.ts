@@ -63,6 +63,8 @@ export interface RepositoryAnalysis {
   stack: StackItem[];
   layers: ArchitectureLayer[];
   qualitySignals: QualitySignal[];
+  appliedCriteriaIds: string[];
+  qualityProfile: string;
   dependencies: DependencyItem[];
   tree: TreeEntry[];
   totals: {

@@ -26,8 +26,10 @@ Os exemplos exibidos na aplicação usam repositórios públicos genéricos, com
 - mapa de camadas arquiteturais;
 - **45 critérios de qualidade**, combinando sinais globais e regras específicas por linguagem;
 - suporte de critérios para JavaScript, TypeScript, Python, Java, Kotlin, C#, Go, Rust, PHP, Ruby, Swift, Dart, C e C++;
-- filtros por linguagem sem penalizar um repositório por critérios de outra stack;
-- presets personalizados para assinantes, persistidos por usuário e reutilizáveis em novas análises;
+- **modo Automático por stack**, que detecta tecnologias como Next.js, React, Angular, Vue, Svelte, NestJS, Django, FastAPI, Spring Boot, Laravel, Rails, .NET, Flutter, Go e Rust e aplica somente critérios compatíveis;
+- catálogo de presets padrão não excluíveis (JavaScript, TypeScript, Next.js, Spring Boot, Laravel e outros);
+- tela exclusiva `/presets` para assinantes criarem, editarem e excluírem presets próprios;
+- presets personalizados persistidos por usuário e reutilizáveis em novas análises;
 - sinais de qualidade como CI, testes, lint, type checking, Docker, lockfile, segurança, governança e licença;
 - estrutura de arquivos com busca;
 - inventário de dependências;
@@ -123,7 +125,7 @@ A rota de retorno do checkout confirma a sessão no servidor antes de encaminhar
 ## Endpoints protegidos
 
 ```text
-GET /api/analyze?repo=vercel/next.js
+GET /api/analyze?repo=vercel/next.js&mode=auto
 GET /api/quality-presets
 POST /api/quality-presets
 DELETE /api/quality-presets?id=<preset-id>
