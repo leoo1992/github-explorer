@@ -41,12 +41,6 @@ export default async function HomePage() {
             <Link href={signupReady ? signupHref : loginHref}>{signupReady ? 'Criar conta e liberar acesso' : 'Entrar na sua conta'}</Link>
             <a href="#exemplo">Ver exemplo de avaliação</a>
           </div>
-          <div className={styles.heroTrust}>
-            <span>E-mail e senha</span>
-            {providers.google ? <span>Google</span> : null}
-            {providers.azure ? <span>Microsoft</span> : null}
-            <span>Pagamento via Stripe</span>
-          </div>
         </div>
         <div className={styles.heroPanel}>
           <div className={styles.panelTop}><span>ANÁLISE TÉCNICA</span><b>Exemplo ilustrativo</b></div>
