@@ -31,10 +31,6 @@ export function PresetManagerPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    void loadPresets();
-  }, []);
-
   async function loadPresets() {
     setLoading(true);
     try {
@@ -51,6 +47,10 @@ export function PresetManagerPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    void loadPresets();
+  }, []);
 
   const visibleCriteria = useMemo(() => QUALITY_CRITERIA.filter((criterion) => {
     if (languageFilter === 'all') return true;
