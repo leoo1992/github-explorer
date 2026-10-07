@@ -1,7 +1,6 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AdminUserActions } from '@/components/admin-user-actions';
-import { BrandIcon } from '@/components/brand-icon';
+import { AppNavigation } from '@/components/app-navigation';
 import { getAccessState } from '@/lib/access';
 import { getAdminMonitoringData } from '@/lib/admin-monitoring';
 import styles from './page.module.css';
@@ -87,22 +86,8 @@ export default async function AdminPage() {
     .slice(0, 10);
 
   return (
-    <main className={styles.page}>
-      <header className={`theme-header ${styles.header}`}>
-        <Link className={styles.brand} href="/">
-          <BrandIcon className={styles.brandIcon} />
-          <span>
-            <strong>RepoScope</strong>
-            <small>Administração</small>
-          </span>
-        </Link>
-
-        <div className={styles.headerActions}>
-          <Link className="btn btn-ghost btn-sm" href="/dashboard">Dashboard</Link>
-          <Link className="btn btn-ghost btn-sm" href="/account">Minha conta</Link>
-          <Link className="btn btn-ghost btn-sm" href="/admin">Atualizar</Link>
-        </div>
-      </header>
+    <main className={[styles.page, 'page-with-dock'].join(' ')}>
+      <AppNavigation admin presetAccess />
 
       <section className={styles.hero}>
         <p>PAINEL ADMINISTRATIVO</p>
