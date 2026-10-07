@@ -35,18 +35,6 @@ type StackItem = {
 };
 
 const owner = process.env.OWNER || 'leoo1992';
-const batchRepositories = new Set([
-  'Leo-AI-poc',
-  'login-react',
-  'poc-dasboard-fintech',
-  'POC-Redux-App-Viagem',
-  'POC-Redux-Filtros',
-  'POC-Redux-Login',
-  'portfolio-leonardo-react',
-  'project_mananger_poc',
-  'ReactNativeTraining',
-  'sistema_ponto',
-]);
 const token = process.env.GITHUB_TOKEN?.trim();
 const headers: Record<string, string> = {
   Accept: 'application/vnd.github+json',
@@ -309,7 +297,7 @@ async function analyze(repo: Repo) {
   };
 }
 
-const repos = (await listRepos()).filter((repo) => batchRepositories.has(repo.name));
+const repos = await listRepos();
 const report: Array<Record<string, unknown>> = [];
 
 for (const [index, repo] of repos.entries()) {
