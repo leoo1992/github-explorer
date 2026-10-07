@@ -44,7 +44,6 @@ export default async function SharedReportPage({
     .maybeSingle();
 
   if (error || !data) notFound();
-  if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) notFound();
 
   const analysis = data.analysis as unknown as RepositoryAnalysis;
   if (!analysis?.repository?.owner || !Array.isArray(analysis.qualitySignals)) notFound();
