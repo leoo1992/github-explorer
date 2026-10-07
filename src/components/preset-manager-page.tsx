@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   QUALITY_CRITERIA,
   QUALITY_LANGUAGES,
@@ -11,7 +11,7 @@ import {
 } from '@/lib/quality-criteria';
 import styles from '@/app/presets/page.module.css';
 
-type CustomQualityPreset = {
+export type CustomQualityPreset = {
   id: string;
   name: string;
   language: QualityLanguage | null;
@@ -20,36 +20,15 @@ type CustomQualityPreset = {
   updatedAt: string;
 };
 
-export function PresetManagerPage() {
-  const [presets, setPresets] = useState<CustomQualityPreset[]>([]);
+export function PresetManagerPage({ initialPresets }: { initialPresets: CustomQualityPreset[] }) {
+  const [presets, setPresets] = useState<CustomQualityPreset[]>(initialPresets);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [language, setLanguage] = useState<QualityLanguage | ''>('');
   const [criteriaIds, setCriteriaIds] = useState<string[]>([]);
   const [languageFilter, setLanguageFilter] = useState<'all' | 'global' | QualityLanguage>('all');
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-
-  async function loadPresets() {
-    try {
-      const response = await fetch('/api/quality-presets', { cache: 'no-store' });
-      const body = await response.json() as { presets?: CustomQualityPreset[]; error?: string };
-      if (!response.ok) {
-        setMessage(body.error ?? 'Não foi possível carregar seus presets.');
-        return;
-      }
-      setPresets(body.presets ?? []);
-    } catch {
-      setMessage('Não foi possível carregar seus presets.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void loadPresets();
-  }, []);
 
   const visibleCriteria = useMemo(() => QUALITY_CRITERIA.filter((criterion) => {
     if (languageFilter === 'all') return true;
@@ -209,8 +188,7 @@ export function PresetManagerPage() {
             <span>{presets.length}/20</span>
           </div>
 
-          {loading ? <div className={styles.empty}>Carregando presets…</div> : null}
-          {!loading && !presets.length ? <div className={styles.empty}>Nenhum preset personalizado criado.</div> : null}
+          {!presets.length ? <div className={styles.empty}>Nenhum preset personalizado criado.</div> : null}
 
           {presets.map((preset) => (
             <article
