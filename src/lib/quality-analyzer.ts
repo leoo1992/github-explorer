@@ -1,4 +1,5 @@
-import type { DependencyItem, QualitySignal, TreeEntry } from '@/types/repository';
+import { QUALITY_CRITERIA } from '@/lib/quality-criteria';
+import type { DependencyItem, QualityEvidence, QualitySignal, SecuritySummary, TreeEntry } from '@/types/repository';
 
 interface GitHubContent {
   content?: string;
@@ -21,6 +22,37 @@ interface GitHubWorkflowJobs {
     conclusion: string | null;
     steps?: Array<{ name: string; conclusion: string | null }>;
   }>;
+}
+
+interface GitHubCommit {
+  sha: string;
+  html_url: string;
+  commit: {
+    message: string;
+    verification?: {
+      verified: boolean;
+      reason: string;
+    };
+  };
+}
+
+interface GitHubDependabotAlert {
+  number: number;
+  state: 'auto_dismissed' | 'dismissed' | 'fixed' | 'open';
+  html_url?: string;
+  dependency?: {
+    package?: {
+      ecosystem?: string;
+      name?: string;
+    };
+    manifest_path?: string;
+  };
+  security_advisory?: {
+    ghsa_id?: string;
+    cve_id?: string | null;
+    summary?: string;
+    severity?: string;
+  };
 }
 
 type TextFile = { path: string; content: string };
@@ -71,6 +103,28 @@ async function githubFetchFresh<T>(url: string, headers: HeadersInit) {
     data: (await response.json()) as T,
     remaining: Number.isFinite(remaining) ? remaining : null,
   };
+}
+
+async function tryGitHubFetchFresh<T>(url: string, headers: HeadersInit) {
+  try {
+    const response = await fetch(url, { headers, cache: 'no-store' });
+    const remainingHeader = response.headers.get('x-ratelimit-remaining');
+    const remaining = remainingHeader ? Number.parseInt(remainingHeader, 10) : null;
+    if (!response.ok) {
+      return {
+        data: null as T | null,
+        status: response.status,
+        remaining: Number.isFinite(remaining) ? remaining : null,
+      };
+    }
+    return {
+      data: (await response.json()) as T,
+      status: response.status,
+      remaining: Number.isFinite(remaining) ? remaining : null,
+    };
+  } catch {
+    return { data: null as T | null, status: 0, remaining: null as number | null };
+  }
 }
 
 function decodeContent(content: GitHubContent) {
@@ -177,6 +231,33 @@ function hasCoverage80(text: string) {
   });
 }
 
+function workflowHasExplicitPermissions(content: string) {
+  if (/^\s*permissions\s*:\s*write-all\s*$/im.test(content)) return false;
+  if (/^\s*permissions\s*:\s*read-all\s*$/im.test(content)) return true;
+  return /^\s*permissions\s*:\s*(?:\n|\r\n)/im.test(content) ||
+    /^\s{2,}permissions\s*:\s*(?:\n|\r\n)/im.test(content);
+}
+
+function secretIndicators(files: TextFile[], sensitivePaths: string[]) {
+  const indicators = new Set<string>();
+  for (const path of sensitivePaths.slice(0, 6)) indicators.add(`arquivo sensível: ${path}`);
+
+  const patterns: Array<[string, RegExp]> = [
+    ['GitHub token', /\bgh[pousr]_[A-Za-z0-9]{20,}\b/],
+    ['AWS access key', /\bAKIA[0-9A-Z]{16}\b/],
+    ['Google API key', /\bAIza[0-9A-Za-z_-]{30,}\b/],
+    ['Private key', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
+    ['Secret literal', /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?(?!\$|\{\{|process\.env|secrets\.)[A-Za-z0-9_+\/=.-]{12,}/i],
+  ];
+
+  for (const file of files) {
+    for (const [name, pattern] of patterns) {
+      if (pattern.test(file.content)) indicators.add(`${name}: ${file.path}`);
+    }
+  }
+  return [...indicators].slice(0, 12);
+}
+
 function successfulStep(jobs: GitHubWorkflowJobs['jobs'], pattern: RegExp) {
   return jobs.some((job) =>
     (pattern.test(job.name) && job.conclusion === 'success') ||
@@ -229,7 +310,7 @@ export async function analyzeQualitySignals(args: {
   tree: TreeEntry[];
   dependencies: DependencyItem[];
   repositoryLicense: { spdx_id?: string | null; name?: string | null } | null;
-}): Promise<{ signals: QualitySignal[]; remaining: number[] }> {
+}): Promise<{ signals: QualitySignal[]; security: SecuritySummary; remaining: number[] }> {
   const { owner, repo, defaultBranch, tree, dependencies, repositoryLicense } = args;
   const headers = buildHeaders();
   const base = `https://api.github.com/repos/${owner}/${repo}`;
@@ -261,6 +342,17 @@ export async function analyzeQualitySignals(args: {
   const workflows = files.filter((file) => /^\.github\/workflows\/.*\.ya?ml$/i.test(file.path));
   const ci = await getCiEvidence(base, defaultBranch, headers, workflows);
 
+  const [commitResult, dependencyAlertsResult] = await Promise.all([
+    tryGitHubFetchFresh<GitHubCommit[]>(
+      `${base}/commits?sha=${encodeURIComponent(defaultBranch)}&per_page=20`,
+      headers,
+    ),
+    tryGitHubFetchFresh<GitHubDependabotAlert[]>(
+      `${base}/dependabot/alerts?state=open&per_page=100`,
+      headers,
+    ),
+  ]);
+
   const hasNode = lowerPaths.some((path) => /(^|\/)package\.json$/.test(path));
   const hasPython = lowerPaths.some((path) => /(^|\/)(pyproject\.toml|requirements[^/]*\.txt|setup\.py)$/.test(path));
   const sensitive = paths.filter(isSensitivePath);
@@ -289,6 +381,22 @@ export async function analyzeQualitySignals(args: {
   const hasSast = /\b(codeql|semgrep|sonar-scanner|sonarqube|snyk\s+code)\b/i.test(combinedText);
   const hasSecretScanning = /\b(gitleaks|trufflehog|detect-secrets|gitguardian)\b/i.test(combinedText);
   const hasDependencyAudit = /\b(npm\s+audit|pnpm\s+audit|yarn\s+audit|pip-audit|safety\s+check|cargo\s+audit|govulncheck|composer\s+audit|bundle\s+audit|osv-scanner|dependency-check|dotnet\s+list[^\n]*vulnerable)\b/i.test(combinedText);
+
+  const dependabotPath = paths.find((path) => /^\.github\/dependabot\.ya?ml$/i.test(path)) ?? null;
+  const codeqlWorkflows = workflows.filter((file) => /github\/codeql-action|\bcodeql\b/i.test(file.content));
+  const hasCodeql = codeqlWorkflows.length > 0;
+  const hasDependabot = Boolean(dependabotPath);
+  const actionsPermissionsExplicit = workflows.length > 0 && workflows.every((file) => workflowHasExplicitPermissions(file.content));
+  const recentCommits = commitResult.data ?? [];
+  const verifiedCommits = recentCommits.filter((commit) => commit.commit.verification?.verified).length;
+  const commitsSigned = recentCommits.length > 0 && verifiedCommits === recentCommits.length;
+  const alertsAvailable = Array.isArray(dependencyAlertsResult.data);
+  const openDependencyAlerts = dependencyAlertsResult.data ?? [];
+  const advisoryIds = [...new Set(openDependencyAlerts
+    .map((alert) => alert.security_advisory?.ghsa_id)
+    .filter((value): value is string => Boolean(value)))];
+  const detectedSecretIndicators = secretIndicators(files, sensitive);
+  const noSecretIndicators = detectedSecretIndicators.length === 0;
   const hasContributing = lowerPaths.some((path) => /(^|\/)contributing(?:\.[^/]+)?\.md$|(^|\/)contributing\.md$/.test(path));
   const hasChangelog = lowerPaths.some((path) => /(^|\/)(changelog|changes|history)(?:\.[^/]+)?\.md$/.test(path));
   const hasPrTemplate = lowerPaths.some((path) =>
@@ -364,6 +472,12 @@ export async function analyzeQualitySignals(args: {
     { label: 'SAST no CI', found: hasSast, detail: hasSast ? 'Ferramenta de SAST detectada no fluxo automatizado' : 'SAST não detectado no CI' },
     { label: 'Varredura de segredos no CI', found: hasSecretScanning, detail: hasSecretScanning ? 'Varredura automatizada de segredos detectada' : 'Varredura de segredos não detectada' },
     { label: 'Auditoria de dependências', found: hasDependencyAudit, detail: hasDependencyAudit ? 'Auditoria automatizada de dependências detectada' : 'Auditoria de vulnerabilidades não detectada' },
+    { label: 'CodeQL configurado', found: hasCodeql, detail: hasCodeql ? `CodeQL detectado em ${codeqlWorkflows.map((file) => file.path).join(', ')}` : 'CodeQL não detectado nos workflows' },
+    { label: 'Dependabot configurado', found: hasDependabot, detail: dependabotPath ? `Configuração: ${dependabotPath}` : 'Arquivo .github/dependabot.yml não encontrado' },
+    { label: 'Permissões de Actions explícitas', found: actionsPermissionsExplicit, detail: actionsPermissionsExplicit ? 'Todos os workflows analisados declaram permissions e nenhum usa write-all' : 'Há workflow sem permissions explícitas ou usando write-all' },
+    { label: 'Commits assinados', found: commitsSigned, detail: recentCommits.length ? `${verifiedCommits}/${recentCommits.length} commits recentes com assinatura verificada` : 'Não foi possível obter commits recentes', status: recentCommits.length ? undefined : 'unknown' },
+    { label: 'Sem advisories/vulnerabilidades abertas', found: alertsAvailable && openDependencyAlerts.length === 0, detail: alertsAvailable ? (openDependencyAlerts.length ? `${openDependencyAlerts.length} alerta(s) Dependabot aberto(s)` : 'Nenhum alerta Dependabot aberto') : 'API de alertas Dependabot indisponível para este repositório/token', status: alertsAvailable ? undefined : 'unknown' },
+    { label: 'Sem indicadores de secrets', found: noSecretIndicators, detail: noSecretIndicators ? 'Nenhum padrão comum de chave, token ou secret foi detectado nos arquivos de configuração analisados' : detectedSecretIndicators.slice(0, 4).join(' · ') },
     { label: 'CONTRIBUTING', found: hasContributing, detail: hasContributing ? 'Guia de contribuição detectado' : 'CONTRIBUTING não encontrado' },
     { label: 'CHANGELOG', found: hasChangelog, detail: hasChangelog ? 'Histórico de mudanças detectado' : 'CHANGELOG não encontrado' },
     { label: 'Template de Pull Request', found: hasPrTemplate, detail: hasPrTemplate ? 'Template de Pull Request detectado' : 'Template de Pull Request não encontrado' },
@@ -386,8 +500,154 @@ export async function analyzeQualitySignals(args: {
     { label: 'Análise estática C/C++', found: hasNativeStaticAnalysis, detail: hasNativeStaticAnalysis ? 'clang-tidy ou cppcheck detectado' : 'Análise estática C/C++ não detectada' },
   ];
 
+  const criterionByLabel = new Map(QUALITY_CRITERIA.map((criterion) => [criterion.label, criterion]));
+  const fileUrl = (path: string) =>
+    `https://github.com/${owner}/${repo}/blob/${encodeURIComponent(defaultBranch)}/${path.split('/').map(encodeURIComponent).join('/')}`;
+  const exactPaths = (pattern: RegExp, limit = 5) =>
+    paths.filter((path) => pattern.test(path.toLowerCase())).slice(0, limit);
+  const contentPaths = (pattern: RegExp, limit = 5) =>
+    files.filter((file) => pattern.test(file.content) || pattern.test(file.path)).map((file) => file.path).slice(0, limit);
+  const asFileEvidence = (items: string[], label: string, positive = true): QualityEvidence[] =>
+    items.map((path) => ({
+      kind: /^\.github\/workflows\//i.test(path) ? 'workflow' : 'file',
+      label,
+      path,
+      url: fileUrl(path),
+      positive,
+    }));
+
+  function evidenceFor(signal: QualitySignal): QualityEvidence[] {
+    const id = criterionByLabel.get(signal.label)?.id;
+    const defaults: QualityEvidence[] = [{
+      kind: 'rule',
+      label: signal.found ? 'Critério atendido' : signal.status === 'unknown' ? 'Evidência indisponível' : 'Critério não atendido',
+      detail: signal.detail,
+      positive: signal.found,
+    }];
+
+    const byId: Record<string, QualityEvidence[]> = {
+      'no-sensitive-files': sensitive.length
+        ? asFileEvidence(sensitive.slice(0, 5), 'Arquivo potencialmente sensível', false)
+        : [{ kind: 'rule', label: 'Árvore do repositório', detail: `${paths.length} arquivos verificados sem nome sensível`, positive: true }],
+      gitignore: textByPath.has('.gitignore')
+        ? asFileEvidence(['.gitignore'], '.gitignore analisado', signal.found)
+        : defaults,
+      readme: asFileEvidence(exactPaths(/(^|\/)readme(?:\.|$)/), 'README detectado', signal.found),
+      'env-example': asFileEvidence(exactPaths(/(^|\/)\.env\.example$/), '.env.example detectado', signal.found),
+      architecture: asFileEvidence(exactPaths(/(^|\/)(architecture|arquitetura)(?:\.[^/]+)?\.md$|(^|\/)docs\/adr\//), 'Documento de arquitetura', signal.found),
+      license: asFileEvidence(exactPaths(/(^|\/)(license|licence)(\.|$)/), 'Licença versionada', signal.found),
+      'docker-safe': asFileEvidence(dockerfiles.map((file) => file.path), 'Dockerfile inspecionado', signal.found),
+      dockerfile: asFileEvidence(exactPaths(/(^|\/)dockerfile$/), 'Dockerfile detectado', signal.found),
+      'pipeline-green': asFileEvidence(workflows.map((file) => file.path), 'Workflow considerado no CI', signal.found),
+      'github-actions': asFileEvidence(workflows.map((file) => file.path), 'Workflow GitHub Actions', signal.found),
+      lockfile: lockfile ? asFileEvidence([lockfile], 'Lockfile detectado') : defaults,
+      'tests-exist': asFileEvidence(exactPaths(/(^|\/)(__tests__|tests?|specs?)(\/|\.|$)/), 'Teste detectado', signal.found),
+      'lint-pass': asFileEvidence(workflows.map((file) => file.path), 'Workflow com evidência de lint', signal.found),
+      'lint-configured': asFileEvidence(exactPaths(/(^|\/)(eslint\.config\.|\.eslintrc|ruff\.toml|\.ruff\.toml|pylintrc|\.flake8|\.golangci\.ya?ml|\.rubocop\.ya?ml|\.swiftlint\.ya?ml|analysis_options\.ya?ml|\.clang-tidy)/), 'Configuração de lint', signal.found),
+      'type-checking': asFileEvidence(exactPaths(/(^|\/)(tsconfig(?:\.[^/]+)?\.json|pyrightconfig\.json|mypy\.ini|phpstan(?:\.neon)?|psalm\.xml)$/), 'Configuração de tipos', signal.found),
+      formatter: asFileEvidence(contentPaths(/prettier|biome|black|ruff\s+format|gofmt|rustfmt|spotless|ktlint|php-cs-fixer|swiftformat|dart\s+format|clang-format/i), 'Evidência de formatter', signal.found),
+      'dead-code': asFileEvidence(contentPaths(/knip|ts-prune|unimported|vulture|deadcode|noUnusedLocals|noUnusedParameters/i), 'Evidência de código morto', signal.found),
+      'coverage-80': asFileEvidence(contentPaths(/cov-fail-under|fail_under|minimum_coverage|test-coverage-lines|coverageThreshold|thresholds/i), 'Configuração de cobertura', signal.found),
+      'tests-pass': asFileEvidence(workflows.map((file) => file.path), 'Workflow com evidência de testes', signal.found),
+      'build-pass': asFileEvidence(workflows.map((file) => file.path), 'Workflow com evidência de build', signal.found),
+      codeowners: asFileEvidence(exactPaths(/(^|\/)(\.github\/)?codeowners$/), 'CODEOWNERS', signal.found),
+      'security-policy': asFileEvidence(exactPaths(/(^|\/)security\.md$/), 'Política de segurança', signal.found),
+      'dependency-updates': asFileEvidence(exactPaths(/^\.github\/dependabot\.ya?ml$|(^|\/)renovate(?:\.json|\.json5|\.ya?ml)$/), 'Automação de dependências', signal.found),
+      sast: asFileEvidence(contentPaths(/codeql|semgrep|sonar-scanner|sonarqube|snyk\s+code/i), 'Evidência de SAST', signal.found),
+      'secret-scanning': asFileEvidence(contentPaths(/gitleaks|trufflehog|detect-secrets|gitguardian/i), 'Scanner de secrets', signal.found),
+      'dependency-audit': asFileEvidence(contentPaths(/npm\s+audit|pnpm\s+audit|yarn\s+audit|pip-audit|cargo\s+audit|govulncheck|osv-scanner|dependency-check/i), 'Auditoria de dependências', signal.found),
+      codeql: asFileEvidence(codeqlWorkflows.map((file) => file.path), 'Workflow CodeQL', signal.found),
+      dependabot: dependabotPath ? asFileEvidence([dependabotPath], 'Configuração Dependabot') : defaults,
+      'actions-permissions': asFileEvidence(workflows.map((file) => file.path), 'Workflow inspecionado para permissions', signal.found),
+      'signed-commits': recentCommits.slice(0, 8).map((commit) => ({
+        kind: 'api',
+        label: commit.commit.verification?.verified ? 'Commit verificado' : 'Commit sem assinatura verificada',
+        detail: commit.commit.message.split('\n')[0],
+        url: commit.html_url,
+        positive: Boolean(commit.commit.verification?.verified),
+      })),
+      'dependency-vulnerabilities': alertsAvailable
+        ? openDependencyAlerts.slice(0, 8).map((alert) => ({
+            kind: 'api',
+            label: alert.security_advisory?.ghsa_id ?? `Dependabot #${alert.number}`,
+            detail: [
+              alert.dependency?.package?.name,
+              alert.security_advisory?.severity,
+              alert.security_advisory?.summary,
+            ].filter(Boolean).join(' · '),
+            path: alert.dependency?.manifest_path,
+            url: alert.security_advisory?.ghsa_id
+              ? `https://github.com/advisories/${alert.security_advisory.ghsa_id}`
+              : alert.html_url,
+            positive: false,
+          }))
+        : defaults,
+      'secret-indicators': detectedSecretIndicators.length
+        ? detectedSecretIndicators.map((detail) => ({ kind: 'rule', label: 'Indicador detectado', detail, positive: false }))
+        : [{ kind: 'rule', label: 'Varredura heurística', detail: `${files.length} arquivos de configuração/workflow analisados sem indicador conhecido`, positive: true }],
+    };
+
+    return byId[id ?? '']?.length ? byId[id ?? ''] : defaults;
+  }
+
+  const remediationById: Record<string, string> = {
+    'no-sensitive-files': 'Remova credenciais e arquivos sensíveis do Git, rotacione qualquer segredo exposto e mantenha apenas exemplos sanitizados.',
+    gitignore: 'Inclua padrões para .env, dependências, caches, cobertura e artefatos de build compatíveis com a stack.',
+    'docker-safe': 'Fixe a versão/base image, execute o container com usuário não-root e injete segredos apenas em runtime.',
+    'pipeline-green': 'Corrija o workflow até o pipeline principal concluir com sucesso na branch padrão.',
+    'tests-exist': 'Adicione uma suíte automatizada cobrindo os fluxos principais do projeto.',
+    'lint-pass': 'Execute o lint no CI e corrija todos os erros antes do merge.',
+    'lint-configured': 'Configure o linter recomendado para a stack e inclua o comando no package/build tooling.',
+    'coverage-80': 'Configure cobertura automatizada com threshold explícito de pelo menos 80%.',
+    'tests-pass': 'Faça a suíte de testes executar no CI e permanecer verde.',
+    'build-pass': 'Inclua e corrija a etapa de build/compilação no CI.',
+    codeql: 'Adicione github/codeql-action com init e analyze em um workflow de segurança.',
+    dependabot: 'Crie .github/dependabot.yml com os ecossistemas e diretórios usados no repositório.',
+    'actions-permissions': 'Declare permissions explicitamente nos workflows e evite write-all; conceda escrita apenas aos jobs que realmente precisam.',
+    'signed-commits': 'Habilite assinatura SSH/GPG e exija commits verificados nas branches protegidas.',
+    'dependency-vulnerabilities': 'Atualize ou substitua dependências afetadas pelos advisories abertos e valide o lockfile.',
+    'secret-indicators': 'Remova o valor sensível do código, rotacione a credencial e passe a usar Secrets/variáveis de ambiente.',
+    'secret-scanning': 'Adicione Gitleaks, TruffleHog ou scanner equivalente ao pipeline.',
+    'dependency-audit': 'Execute auditoria de vulnerabilidades no CI usando a ferramenta adequada ao ecossistema.',
+  };
+
+  const enrichedSignals = signals.map((signal) => {
+    const criterion = criterionByLabel.get(signal.label);
+    return {
+      ...signal,
+      criterionId: criterion?.id,
+      status: signal.status ?? (signal.found ? 'pass' : 'fail'),
+      evidence: evidenceFor(signal),
+      remediation: criterion
+        ? remediationById[criterion.id] ?? `Atenda ao critério “${criterion.label}”: ${criterion.description}`
+        : undefined,
+    } satisfies QualitySignal;
+  });
+
+  const security: SecuritySummary = {
+    codeql: hasCodeql,
+    dependabot: hasDependabot,
+    actionsPermissionsExplicit,
+    signedCommits: {
+      verified: verifiedCommits,
+      total: recentCommits.length,
+    },
+    dependencyAlerts: {
+      available: alertsAvailable,
+      open: openDependencyAlerts.length,
+      advisories: advisoryIds,
+    },
+    secretIndicators: detectedSecretIndicators,
+  };
+
   return {
-    signals,
-    remaining: [...reads.map((result) => result.remaining), ...ci.remaining].filter((value): value is number => value !== null),
+    signals: enrichedSignals,
+    security,
+    remaining: [
+      ...reads.map((result) => result.remaining),
+      ...ci.remaining,
+      commitResult.remaining,
+      dependencyAlertsResult.remaining,
+    ].filter((value): value is number => value !== null),
   };
 }
