@@ -13,62 +13,26 @@ import {
 import type {
   ArchitectureLayer,
   DependencyItem,
-  OwnerQualitySummary,
   RepositoryAnalysis,
   TreeEntry,
 } from '@/types/repository';
 
-type SearchMode = 'repository' | 'owner' | 'project';
 type Tab = 'overview' | 'architecture' | 'files' | 'dependencies';
-type OwnerRepositoryScore = { name: string; score: number; offset?: number };
 type AnalysisState = 'idle' | 'running' | 'waiting' | 'complete' | 'empty';
-
-type OwnerBatch = {
-  state?: 'waiting' | 'not_found' | 'input';
-  retryAfterMs?: number;
-  totalRepositories?: number;
-  repositories?: OwnerRepositoryScore[];
-  pendingOffsets?: number[];
-  nextOffset?: number;
-  scanComplete?: boolean;
-  complete?: boolean;
-};
 
 type AnalysisControl = {
   state?: 'waiting' | 'not_found' | 'input';
   retryAfterMs?: number;
 };
 
-const modes: Record<SearchMode, { label: string; placeholder: string; hint: string; examples: string[] }> = {
-  repository: {
-    label: 'Repositório',
-    placeholder: 'owner/repository ou URL completa do GitHub',
-    hint: 'Arquitetura, stack, dependências e sinais de qualidade.',
-    examples: ['vercel/next.js', 'facebook/react'],
-  },
-  owner: {
-    label: 'Owner / organização',
-    placeholder: 'owner ou https://github.com/owner',
-    hint: 'Analisa em lote os repositórios públicos do owner informado.',
-    examples: ['vercel', 'facebook'],
-  },
-  project: {
-    label: 'Nome do projeto',
-    placeholder: 'nome do projeto, ex.: django',
-    hint: 'Busca a correspondência pública mais relevante antes de analisar.',
-    examples: ['django', 'next.js'],
-  },
-};
+const repositoryInput = {
+  placeholder: 'owner/repository ou URL completa do GitHub',
+  hint: 'Arquitetura, stack, dependências e sinais de qualidade.',
+  examples: ['vercel/next.js', 'facebook/react'],
+} as const;
 
 function compact(value: number) {
   return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
-}
-
-function normalizeOwner(value: string) {
-  const normalized = value.trim().replace(/\/+$/, '');
-  const match = normalized.match(/^(?:https?:\/\/)?github\.com\/([^/?#]+)(?:[/?#].*)?$/i);
-  const owner = (match?.[1] ?? normalized.replace(/^@/, '')).trim();
-  return owner && /^[A-Za-z0-9_.-]+$/.test(owner) ? owner : null;
 }
 
 function delay(ms: number, signal: AbortSignal) {
@@ -80,11 +44,6 @@ function delay(ms: number, signal: AbortSignal) {
       resolve();
     }, { once: true });
   });
-}
-
-function averageScore(repositories: OwnerRepositoryScore[]) {
-  if (!repositories.length) return null;
-  return Math.round(repositories.reduce((sum, item) => sum + item.score, 0) / repositories.length);
 }
 
 function Overview({ data, criteriaIds }: { data: RepositoryAnalysis; criteriaIds: string[] }) {
@@ -191,41 +150,6 @@ function Dependencies({ items }: { items: DependencyItem[] }) {
   );
 }
 
-function Progress({ current, total, status, waiting }: { current: number; total: number; status: string; waiting: boolean }) {
-  const percentage = total ? Math.min(100, Math.round((current / total) * 100)) : 0;
-  return (
-    <div className="analysis-progress" aria-live="polite">
-      <div className="analysis-progress-head"><div><strong>{status}</strong><span>{current} de {total} repositórios validados</span></div><b>{percentage}%</b></div>
-      <div className="analysis-progress-track"><span className={waiting ? 'waiting' : ''} style={{ width: `${percentage}%` }} /></div>
-      <small>O processamento continua automaticamente até validar todos os repositórios públicos.</small>
-    </div>
-  );
-}
-
-function OwnerResult({ summary, repositories, status, state, criteriaCount }: {
-  summary: OwnerQualitySummary;
-  repositories: OwnerRepositoryScore[];
-  status: string;
-  state: AnalysisState;
-  criteriaCount: number;
-}) {
-  const attention = repositories.filter((item) => item.score < 100).sort((a, b) => a.score - b.score);
-  return (
-    <section className="panel">
-      <div className="panel-head"><div><p>Portfolio engineering scan</p><h2>@{summary.owner}</h2></div><span className="criteria-count">{criteriaCount} critérios</span></div>
-      {!summary.complete ? <Progress current={summary.analyzedRepositories} total={summary.totalRepositories} status={status} waiting={state === 'waiting'} /> : null}
-      <section className="metric-grid">
-        <article><span>{summary.complete ? 'Média final' : 'Média parcial'}</span><strong>{summary.average ?? '—'}{summary.average !== null ? '%' : ''}</strong><small>sinais técnicos validados</small></article>
-        <article><span>Repositórios</span><strong>{summary.totalRepositories}</strong><small>públicos encontrados</small></article>
-        <article><span>Validados</span><strong>{summary.analyzedRepositories}</strong><small>{summary.complete ? 'análise concluída' : 'processamento em andamento'}</small></article>
-        <article><span>Com atenção</span><strong>{attention.length}</strong><small>score abaixo de 100%</small></article>
-      </section>
-      {attention.length ? <div className="dependency-table-wrap"><table className="dependency-table"><thead><tr><th>Repositório</th><th>Qualidade</th></tr></thead><tbody>{attention.map((item) => <tr key={`${item.offset ?? item.name}-${item.name}`}><td><strong>{item.name}</strong></td><td>{item.score}%</td></tr>)}</tbody></table></div> : null}
-      <p className="tree-note">O score mede sinais observáveis do repositório. Não representa competência profissional e não deve ser usado como decisão automática de contratação.</p>
-    </section>
-  );
-}
-
 function CriteriaSelector({ selected, setSelected, disabled }: {
   selected: string[];
   setSelected: (ids: string[]) => void;
@@ -275,12 +199,8 @@ function CriteriaSelector({ selected, setSelected, disabled }: {
 
 export function ExplorerPaid() {
   const router = useRouter();
-  const [mode, setMode] = useState<SearchMode>('repository');
   const [input, setInput] = useState('vercel/next.js');
   const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(null);
-  const [ownerSummary, setOwnerSummary] = useState<OwnerQualitySummary | null>(null);
-  const [ownerScores, setOwnerScores] = useState<OwnerRepositoryScore[]>([]);
-  const [ownerStatus, setOwnerStatus] = useState('');
   const [analysisState, setAnalysisState] = useState<AnalysisState>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [tab, setTab] = useState<Tab>('overview');
@@ -308,28 +228,42 @@ export function ExplorerPaid() {
     return false;
   }
 
-  async function analyzeRepository(value: string, selectedMode: SearchMode) {
+  async function analyzeRepository(value: string, criteriaIds: string[]) {
     const controller = startController();
-    setLoading(true); setAnalysis(null); setOwnerSummary(null); setOwnerScores([]);
-    setAnalysisState('running'); setStatusMessage('Coletando evidências públicas do GitHub');
+    setLoading(true);
+    setAnalysis(null);
+    setAnalysisState('running');
+    setStatusMessage('Coletando evidências públicas do repositório');
     let waitMs = 2_000;
 
     while (!controller.signal.aborted) {
       try {
-        const response = await fetch(`/api/analyze?repo=${encodeURIComponent(value)}&mode=${selectedMode === 'project' ? 'project' : 'repository'}`, { cache: 'no-store', signal: controller.signal });
+        const criteria = encodeURIComponent(criteriaIds.join(','));
+        const response = await fetch(
+          `/api/analyze?repo=${encodeURIComponent(value)}&criteria=${criteria}`,
+          { cache: 'no-store', signal: controller.signal },
+        );
         if (handleAccessStatus(response.status)) return;
+
         const body = await response.json() as RepositoryAnalysis | AnalysisControl;
 
         if (response.ok && 'repository' in body) {
           setStatusMessage('Consolidando resultado');
-          setAnalysis(body); setInput(body.repository.fullName); setMode('repository'); setTab('overview');
-          setAnalysisState('complete'); setLoading(false);
+          setAnalysis(body);
+          setInput(body.repository.fullName);
+          setTab('overview');
+          setAnalysisState('complete');
+          setLoading(false);
           return;
         }
 
         if ('state' in body && (body.state === 'not_found' || body.state === 'input')) {
           setAnalysisState('empty');
-          setStatusMessage(body.state === 'not_found' ? 'Nenhum repositório público correspondente foi encontrado.' : 'Informe um repositório, URL ou projeto público válido.');
+          setStatusMessage(
+            body.state === 'not_found'
+              ? 'Repositório público não encontrado.'
+              : 'Informe owner/repository ou a URL completa de um repositório público do GitHub.',
+          );
           setLoading(false);
           return;
         }
@@ -349,140 +283,21 @@ export function ExplorerPaid() {
     }
   }
 
-  async function requestOwnerBatch(owner: string, offset: number, limit: number, criteriaIds: string[], signal: AbortSignal) {
-    const criteria = encodeURIComponent(criteriaIds.join(','));
-    const response = await fetch(`/api/owner-quality?owner=${encodeURIComponent(owner)}&offset=${offset}&limit=${limit}&criteria=${criteria}`, { cache: 'no-store', signal });
-    if (handleAccessStatus(response.status)) return null;
-    return await response.json() as OwnerBatch;
-  }
-
-  async function analyzeOwner(value: string, criteriaIds: string[]) {
-    const owner = normalizeOwner(value);
-    if (!owner) {
-      setAnalysisState('empty');
-      setStatusMessage('Informe um owner ou uma URL pública válida do GitHub.');
-      return;
-    }
-
-    const controller = startController();
-    setLoading(true); setAnalysis(null); setOwnerSummary(null); setOwnerScores([]);
-    setOwnerStatus('Preparando portfólio público'); setAnalysisState('running'); setStatusMessage('');
-
-    const scoresByOffset = new Map<number, OwnerRepositoryScore>();
-    const pendingOffsets = new Set<number>();
-    let offset = 0;
-    let total = 0;
-    let transientWait = 2_000;
-
-    const publish = (complete = false) => {
-      const repositories = [...scoresByOffset.values()].sort((a, b) => (a.offset ?? 0) - (b.offset ?? 0));
-      setOwnerScores(repositories);
-      setOwnerSummary({
-        owner,
-        average: averageScore(repositories),
-        totalRepositories: total,
-        analyzedRepositories: repositories.length,
-        complete,
-        scope: 'public',
-        analyzedAt: new Date().toISOString(),
-      });
-    };
-
-    while (!controller.signal.aborted && (!total || offset < total)) {
-      try {
-        const batch = await requestOwnerBatch(owner, offset, 6, criteriaIds, controller.signal);
-        if (!batch || controller.signal.aborted) return;
-
-        if (batch.state === 'not_found' || batch.state === 'input') {
-          setAnalysisState('empty'); setStatusMessage('Nenhum portfólio público correspondente foi encontrado.'); setLoading(false); return;
-        }
-        if (batch.state === 'waiting' || batch.totalRepositories === undefined) {
-          setAnalysisState('waiting'); setOwnerStatus('Aguardando dados do GitHub · retomada automática');
-          await delay(Math.min(Math.max(batch.retryAfterMs ?? transientWait, 2_000), 60 * 60 * 1_000), controller.signal);
-          transientWait = Math.min(transientWait * 2, 30_000);
-          continue;
-        }
-
-        transientWait = 2_000;
-        total = batch.totalRepositories;
-        if (total === 0) {
-          setAnalysisState('empty');
-          setStatusMessage('Este owner não possui repositórios públicos para analisar.');
-          setLoading(false);
-          return;
-        }
-        for (const repository of batch.repositories ?? []) {
-          const repositoryOffset = repository.offset;
-          if (typeof repositoryOffset === 'number') {
-            scoresByOffset.set(repositoryOffset, repository);
-            pendingOffsets.delete(repositoryOffset);
-          }
-        }
-        for (const pending of batch.pendingOffsets ?? []) pendingOffsets.add(pending);
-        offset = batch.nextOffset ?? Math.min(total, offset + 6);
-        setAnalysisState('running');
-        setOwnerStatus(`${scoresByOffset.size}/${total} repositórios validados`);
-        publish(false);
-      } catch {
-        if (controller.signal.aborted) return;
-        setAnalysisState('waiting'); setOwnerStatus('Sincronizando novamente · retomada automática');
-        await delay(transientWait, controller.signal);
-        transientWait = Math.min(transientWait * 2, 30_000);
-      }
-    }
-
-    while (!controller.signal.aborted && pendingOffsets.size > 0) {
-      const pendingOffset = [...pendingOffsets][0]!;
-      try {
-        const batch = await requestOwnerBatch(owner, pendingOffset, 1, criteriaIds, controller.signal);
-        if (!batch || controller.signal.aborted) return;
-        if (batch.state === 'waiting' || batch.totalRepositories === undefined) {
-          setAnalysisState('waiting'); setOwnerStatus('Aguardando nova janela de consulta · retomada automática');
-          await delay(Math.min(Math.max(batch.retryAfterMs ?? transientWait, 2_000), 60 * 60 * 1_000), controller.signal);
-          transientWait = Math.min(transientWait * 2, 30_000);
-          continue;
-        }
-
-        transientWait = 2_000;
-        total = batch.totalRepositories;
-        const repository = batch.repositories?.[0];
-        if (repository && typeof repository.offset === 'number') {
-          scoresByOffset.set(repository.offset, repository);
-          pendingOffsets.delete(repository.offset);
-          setAnalysisState('running');
-          setOwnerStatus(`${scoresByOffset.size}/${total} repositórios validados`);
-          publish(false);
-          continue;
-        }
-
-        setAnalysisState('waiting'); setOwnerStatus('Revalidando item pendente · retomada automática');
-        await delay(Math.min(Math.max(batch.retryAfterMs ?? 4_000, 2_000), 60 * 60 * 1_000), controller.signal);
-      } catch {
-        if (controller.signal.aborted) return;
-        setAnalysisState('waiting'); setOwnerStatus('Sincronizando item pendente · retomada automática');
-        await delay(transientWait, controller.signal);
-        transientWait = Math.min(transientWait * 2, 30_000);
-      }
-    }
-
-    if (!controller.signal.aborted) {
-      publish(true);
-      setOwnerStatus('Análise concluída'); setAnalysisState('complete'); setLoading(false);
-    }
-  }
-
-  function run(value = input, selectedMode = mode) {
+  function run(value = input) {
     const normalized = value.trim();
     if (!normalized || loading) return;
+
     const criteriaSnapshot = [...selectedCriteria];
     setAppliedCriteria(criteriaSnapshot);
-    setInput(normalized); setMode(selectedMode); setStatusMessage('');
-    if (selectedMode === 'owner') void analyzeOwner(normalized, criteriaSnapshot);
-    else void analyzeRepository(normalized, selectedMode);
+    setInput(normalized);
+    setStatusMessage('');
+    void analyzeRepository(normalized, criteriaSnapshot);
   }
 
-  function submit(event: FormEvent) { event.preventDefault(); run(); }
-  const active = modes[mode];
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    run();
+  }
 
   return (
     <main>
@@ -492,21 +307,19 @@ export function ExplorerPaid() {
           <div className="repo-actions"><Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
         </div>
         <div className="hero-content shell">
-          <div className="hero-copy"><p className="eyebrow">ASSINATURA ATIVA</p><h1>Avalie projetos públicos com evidências técnicas.</h1><p>Escolha o escopo e quais sinais entram no cálculo. O progresso é exibido durante toda a análise e etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>
+          <div className="hero-copy"><p className="eyebrow">ASSINATURA ATIVA</p><h1>Avalie repositórios públicos com evidências técnicas.</h1><p>Informe um repositório público do GitHub e escolha quais sinais entram no cálculo. Etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>
           <form className="repo-form" onSubmit={submit}>
-            <div className="segmented">{(Object.keys(modes) as SearchMode[]).map((item) => <button key={item} className={mode === item ? 'active' : ''} type="button" disabled={loading} onClick={() => { setMode(item); setStatusMessage(''); setAnalysisState('idle'); }}>{modes[item].label}</button>)}</div>
-            <div className="repo-input"><input aria-label="Entrada do GitHub" value={input} onChange={(event) => setInput(event.target.value)} placeholder={active.placeholder} spellCheck={false} disabled={loading} /><button type="submit" disabled={loading || !input.trim()}>{loading ? 'Processando…' : 'Analisar'}</button></div>
+            <div className="repo-input"><input aria-label="Repositório do GitHub" value={input} onChange={(event) => setInput(event.target.value)} placeholder={repositoryInput.placeholder} spellCheck={false} disabled={loading} /><button type="submit" disabled={loading || !input.trim()}>{loading ? 'Processando…' : 'Analisar repositório'}</button></div>
             <CriteriaSelector selected={selectedCriteria} setSelected={setSelectedCriteria} disabled={loading} />
-            <div className="examples"><span>{active.hint} Exemplos:</span>{active.examples.map((example) => <button key={example} type="button" disabled={loading} onClick={() => run(example, mode)}>{example}</button>)}</div>
+            <div className="examples"><span>{repositoryInput.hint} Exemplos:</span>{repositoryInput.examples.map((example) => <button key={example} type="button" disabled={loading} onClick={() => run(example)}>{example}</button>)}</div>
           </form>
         </div>
       </section>
 
       <section className="shell workspace">
-        {loading && !ownerSummary ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>A análise é retomada automaticamente sempre que uma etapa precisa aguardar.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
-        {!analysis && !ownerSummary && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Escolha o tipo e os critérios da análise.</h2><p>{selectedCriteria.length} critérios estão selecionados para o próximo cálculo.</p></div> : null}
-        {!analysis && !ownerSummary && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Ajuste a entrada e execute novamente quando quiser.</p></div> : null}
-        {ownerSummary ? <OwnerResult summary={ownerSummary} repositories={ownerScores} status={ownerStatus} state={analysisState} criteriaCount={appliedCriteria.length} /> : null}
+        {loading ? <div className="loading-layout"><div className="analysis-status"><span className={analysisState === 'waiting' ? 'status-dot waiting' : 'status-dot'} /><div><strong>{statusMessage || 'Preparando análise'}</strong><small>A análise é retomada automaticamente sempre que uma etapa precisa aguardar.</small></div></div><div className="indeterminate-progress"><span /></div><div className="skeleton-grid">{Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}</div></div> : null}
+        {!analysis && !loading && analysisState === 'idle' ? <div className="empty-landing"><h2>Informe um repositório para iniciar.</h2><p>{selectedCriteria.length} critérios estão selecionados para o próximo cálculo.</p></div> : null}
+        {!analysis && !loading && analysisState === 'empty' ? <div className="empty-landing"><h2>{statusMessage}</h2><p>Use owner/repository ou uma URL completa do GitHub e execute novamente.</p></div> : null}
         {analysis ? <>
           <header className="repo-header"><div className="repo-identity"><div className="repo-icon">◆</div><div><p>{analysis.repository.owner}</p><h2>{analysis.repository.name}</h2><span>{analysis.repository.description ?? 'Sem descrição cadastrada no GitHub.'}</span></div></div><div className="repo-actions"><a className="primary-action" href={analysis.repository.htmlUrl} target="_blank" rel="noreferrer">Abrir GitHub</a></div><div className="repo-meta"><span><strong>{compact(analysis.repository.stars)}</strong> stars</span><span><strong>{compact(analysis.repository.forks)}</strong> forks</span><span><strong>{analysis.repository.defaultBranch}</strong> branch</span></div></header>
           <nav className="tabs">{([['overview','Visão geral'],['architecture','Arquitetura'],['files','Arquivos'],['dependencies','Dependências']] as const).map(([value,label]) => <button key={value} type="button" className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{label}</button>)}</nav>
