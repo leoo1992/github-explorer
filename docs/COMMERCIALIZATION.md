@@ -2,175 +2,106 @@
 
 ## Posicionamento
 
-O RepoScope deixa de ser apenas um explorador de arquitetura e passa a ser um produto de **engineering intelligence** para decisões de recrutamento, liderança técnica e avaliação de software.
+O RepoScope é um produto de **engineering intelligence** que transforma evidências públicas do GitHub em uma leitura técnica rápida, consistente e compartilhável.
 
-A proposta de valor central é simples:
+O produto não toma decisões de contratação. Ele organiza sinais técnicos observáveis para apoiar revisão humana por recrutadores técnicos, Tech Leads e equipes de engenharia.
 
-> transformar evidências públicas do GitHub em uma leitura técnica rápida, consistente e compartilhável.
+## Modelo comercial atual
 
-## Segmentos prioritários
+### RepoScope Pro
 
-### 1. Recrutadores técnicos
+Preço: **R$ 9,90 por mês**.
 
-Problema: abrir manualmente vários repositórios de cada candidato é lento e exige conhecimento técnico.
+O fluxo atual é paid-only:
 
-Valor do RepoScope:
+1. visitante acessa a landing pública e vê uma demonstração com dados fictícios;
+2. cria conta com e-mail/senha; Google e Microsoft aparecem apenas quando o respectivo OAuth está realmente disponível;
+3. segue para o checkout Stripe;
+4. a assinatura é confirmada no servidor e sincronizada por webhook;
+5. somente usuários com assinatura `active` ou `trialing` ou acesso administrativo interno acessam o dashboard e os endpoints de análise.
 
-- visão agregada do owner;
-- score de sinais de qualidade por repositório;
-- identificação rápida de stack e arquitetura;
-- relatório compartilhável com o Tech Lead.
+Não existe análise gratuita no fluxo comercial atual.
 
-### 2. Empresas de recrutamento e seleção
+## Regra de comunicação dos métodos de login
 
-Problema: cada recrutador avalia portfólios de forma diferente.
+O sistema não deve anunciar um método de login que não esteja utilizável naquele momento.
 
-Valor do RepoScope:
+- e-mail e senha são sempre o fallback base;
+- Google só aparece quando o Supabase reporta o provedor como habilitado;
+- Microsoft só aparece quando o Supabase reporta Azure como habilitado;
+- falhas de consulta ocultam os provedores sociais;
+- uma falha OAuth conhecida também oculta temporariamente o provedor em landing e login;
+- textos comerciais da aplicação devem consumir a mesma disponibilidade usada pelos botões de autenticação.
 
-- critério padronizado de triagem;
-- comparação reproduzível entre portfólios;
-- redução de tempo antes da entrevista técnica;
-- possibilidade futura de workspace por cliente e vaga.
-
-### 3. Tech Leads e Engineering Managers
-
-Problema: entender um projeto novo exige navegar por arquivos, manifestos, CI e documentação.
-
-Valor do RepoScope:
-
-- mapa arquitetural;
-- stack detectada por evidência;
-- qualidade de CI, testes, lint, Docker e documentação;
-- inventário de dependências e árvore de arquivos.
-
-### 4. Empresas de tecnologia
-
-Problema: due diligence técnica e revisão inicial de projetos consomem tempo de engenharia.
-
-Valor do RepoScope:
-
-- screening técnico rápido;
-- critérios consistentes entre squads;
-- relatórios auditáveis e compartilháveis;
-- base futura para políticas internas de qualidade.
-
-## Modelo de produto recomendado
-
-### Free
-
-Objetivo: aquisição e demonstração de valor.
+## Entregas do plano
 
 - análise de repositório público;
-- arquitetura, stack, linguagens e qualidade;
-- link compartilhável;
-- busca por nome de projeto.
+- análise agregada de owner/organização;
+- busca por nome de projeto;
+- stack, linguagens, arquitetura e dependências;
+- sinais de qualidade de engenharia;
+- evidências explicáveis para cada score;
+- acesso ao Customer Portal do Stripe para gerenciar assinatura, pagamento e cancelamento.
 
-### Recruiter Pro
+## Público prioritário
 
-Objetivo: monetização individual.
-
-- análise completa de owner;
-- histórico de candidatos;
-- relatórios exportáveis;
-- notas do recrutador;
-- comparação entre candidatos;
-- filtros por stack, qualidade e evidências.
-
-### Team
-
-Objetivo: empresas de recrutamento e times de tecnologia.
-
-- workspace compartilhado;
-- múltiplos usuários;
-- vagas/processos seletivos;
-- scorecards customizáveis;
-- relatórios com identidade da empresa;
-- limites maiores de análise;
-- integração futura com ATS.
-
-### Enterprise
-
-Objetivo: empresas com políticas próprias e repositórios privados.
-
-- GitHub App para repositórios privados;
-- SSO;
-- controles de acesso;
-- critérios de qualidade customizados;
-- API e webhooks;
-- auditoria e retenção configurável.
-
-## Roadmap para receita
-
-### Fase 1 — MVP comercial
-
-Já iniciado nesta versão:
-
-- entrada separada para repositório, owner e nome de projeto;
-- análise agregada de owner;
-- experiência orientada a recrutamento e liderança técnica;
-- melhoria de performance e remoção de chamadas duplicadas.
-
-Próximos itens:
-
-1. autenticação;
-2. persistência de análises;
-3. geração de relatório PDF/CSV;
-4. comparação entre dois ou mais owners;
-5. criação de scorecard por vaga;
-6. limites por plano;
-7. billing.
-
-### Fase 2 — Recruiter Pro
-
-- dashboard de candidatos;
-- tags e notas;
-- shortlist;
-- relatório de candidato;
-- compartilhamento privado;
-- comparação lado a lado.
-
-### Fase 3 — Team / Enterprise
-
-- organizações;
-- RBAC;
-- GitHub App;
-- repositórios privados;
-- integrações com ATS;
-- API comercial.
+- recrutadores técnicos;
+- empresas de recrutamento e seleção;
+- Tech Leads e Engineering Managers;
+- times de tecnologia fazendo revisão inicial de software público.
 
 ## Princípios de confiança
 
-O RepoScope não deve afirmar que um score representa competência profissional. O score mede sinais observáveis de engenharia presentes em repositórios públicos.
+O score mede sinais observáveis presentes nos repositórios públicos analisados. Ele não representa competência profissional e não deve ser usado como decisão automática de contratação.
 
 Para uso em recrutamento:
 
-- sempre mostrar as evidências por trás do score;
-- permitir revisão humana;
-- evitar inferências sobre atributos pessoais;
-- não usar o score como decisão automática de contratação;
+- sempre exibir evidências por trás do score;
+- manter revisão humana;
+- não inferir atributos pessoais;
+- não classificar automaticamente candidatos para contratação;
 - explicar limitações de amostragem, projetos antigos e código não público.
 
-## Métricas de negócio
+## Arquitetura comercial
 
-Acompanhar:
+- **Supabase Auth** — cadastro, login, sessão e OAuth opcional;
+- **Supabase Postgres** — estado de assinatura com RLS;
+- **Stripe Billing + Checkout** — cobrança recorrente;
+- **Stripe Customer Portal** — autosserviço pós-venda;
+- **GitHub REST API** — dados públicos analisados;
+- **Vercel** — aplicação Next.js e endpoints server-side.
 
-- análises iniciadas por visitante;
-- percentual que usa modo owner;
-- tempo médio até resultado;
-- taxa de compartilhamento de relatório;
-- usuários que repetem análise em 7 e 30 dias;
-- conversão Free → Pro;
-- quantidade de candidatos analisados por recrutador;
-- custo médio de API por análise.
+## Estado de provisionamento
 
-## Moat potencial
+- projeto Supabase `RepoScope` criado em `sa-east-1`;
+- tabela `public.subscriptions` aplicada com RLS;
+- produto Stripe de teste `RepoScope Pro` criado;
+- preço de teste ativo de R$ 9,90/mês;
+- preço antigo de R$ 79/mês desativado;
+- Customer Portal de teste configurado;
+- fluxo de checkout, confirmação, webhooks e portal implementado no código;
+- disponibilidade de OAuth centralizada e com fallback fail-closed;
+- CI exige typecheck, lint, testes, cobertura mínima de 80% e build.
 
-O diferencial não deve ser apenas consultar a API do GitHub. O valor defensável deve vir de:
+## Dependências externas para produção
 
-- scorecards configuráveis;
-- histórico e comparação;
-- explicabilidade das evidências;
-- workflow de recrutamento;
-- dados agregados do processo do cliente;
-- integração com ATS e GitHub App;
-- velocidade e experiência de uso.
+- credenciais Google OAuth, caso Google seja habilitado;
+- credenciais Microsoft Entra ID OAuth, caso Microsoft seja habilitado;
+- secret key do Supabase configurada no ambiente server-side;
+- Stripe em live mode com produto/preço live de R$ 9,90/mês;
+- restricted/secret Stripe key e webhook signing secret no ambiente server-side;
+- Site URL e Redirect URLs de produção no Supabase Auth.
+
+A ausência de Google ou Microsoft **não bloqueia o lançamento**: o produto continua funcional por e-mail e senha e não anuncia os provedores indisponíveis.
+
+## Próximas evoluções de produto
+
+Depois do MVP pago estabilizado, os incrementos de maior valor são:
+
+- histórico de análises;
+- exportação PDF/CSV;
+- workspaces de equipe;
+- GitHub App para repositórios privados;
+- limites de uso por plano;
+- relatórios compartilháveis;
+- auditoria e retenção configurável para clientes empresariais.

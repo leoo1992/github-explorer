@@ -1,1 +1,1 @@
-export { ExplorerV2 as Explorer } from './explorer-v2';
+export { ExplorerPaid as Explorer } from './explorer-paid';

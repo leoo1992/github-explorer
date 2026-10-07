@@ -1,4 +1,5 @@
 import { analyzeQualitySignals } from '@/lib/quality-analyzer';
+import { requiresLiveCiEvidence, sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
 import type {
   ArchitectureLayer,
   DependencyItem,
@@ -111,6 +112,7 @@ async function githubFetch<T>(url: string, headers: HeadersInit): Promise<{ data
   const response = await fetch(url, {
     headers,
     next: { revalidate: 600 },
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (response.status === 404) {
@@ -118,8 +120,8 @@ async function githubFetch<T>(url: string, headers: HeadersInit): Promise<{ data
   }
 
   if (!response.ok) {
-    if (response.status === 403) {
-      throw new Error('Limite da API do GitHub atingido. Tente novamente mais tarde ou configure GITHUB_TOKEN.');
+    if (response.status === 403 || response.status === 429) {
+      throw new Error('Fonte pública temporariamente indisponível.');
     }
     throw new Error(`GitHub respondeu com HTTP ${response.status}.`);
   }
@@ -274,9 +276,10 @@ function buildLayers(stack: StackItem[], tree: TreeEntry[]): ArchitectureLayer[]
 
 export async function analyzeRepository(
   input: string,
-  options: { allowProjectLookup?: boolean } = {},
+  options: { allowProjectLookup?: boolean; criteriaIds?: string[] } = {},
 ): Promise<RepositoryAnalysis> {
   const headers = buildHeaders();
+  const criteriaIds = sanitizeQualityCriteriaIds(options.criteriaIds);
   const resolved = await resolveRepoInput(
     input,
     headers,
@@ -346,6 +349,13 @@ export async function analyzeRepository(
     dependencies,
     repositoryLicense: repository.license,
   });
+
+  const hasGitHubActions = signals.some(
+    (signal) => signal.label === 'GitHub Actions' && signal.found,
+  );
+  if (requiresLiveCiEvidence(criteriaIds) && hasGitHubActions && qualityRemaining.length === 0) {
+    throw new Error('Evidência de CI temporariamente indisponível; reprocessamento necessário.');
+  }
 
   const totalLanguageBytes = Object.values(languagesResult.data).reduce(
     (total, value) => total + value,
