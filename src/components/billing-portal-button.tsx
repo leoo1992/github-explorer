@@ -24,7 +24,7 @@ export function BillingPortalButton() {
   return (
     <div>
       <button type="button" onClick={() => void openPortal()} disabled={loading}>
-        {loading ? 'Abrindo Stripe…' : 'Gerenciar assinatura'}
+        {loading ? 'Abrindo pagamento seguro…' : 'Gerenciar assinatura'}
       </button>
       {error ? <p role="alert">{error}</p> : null}
     </div>
