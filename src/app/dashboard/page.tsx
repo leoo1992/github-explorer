@@ -18,6 +18,7 @@ export default async function DashboardPage() {
   return (
     <Explorer
       admin={access.admin}
+      paid={access.paid}
       freeGrantDaysRemaining={access.freeGrantDaysRemaining}
       freeAnalysisAvailable={access.freeAnalysisAvailable}
       recentAnalyses={recentAnalyses}
