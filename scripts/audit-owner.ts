@@ -35,7 +35,6 @@ type StackItem = {
 };
 
 const owner = process.env.OWNER || 'leoo1992';
-const batchRepositories = new Set(['poc-nest']);
 const token = process.env.GITHUB_TOKEN?.trim();
 const headers: Record<string, string> = {
   Accept: 'application/vnd.github+json',
@@ -298,7 +297,7 @@ async function analyze(repo: Repo) {
   };
 }
 
-const repos = (await listRepos()).filter((repo) => batchRepositories.has(repo.name));
+const repos = await listRepos();
 const report: Array<Record<string, unknown>> = [];
 
 for (const [index, repo] of repos.entries()) {
