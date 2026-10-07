@@ -35,18 +35,7 @@ type StackItem = {
 };
 
 const owner = process.env.OWNER || 'leoo1992';
-const batchRepositories = new Set([
-  'test-curso-dio-IDE-java-intelliJ',
-  'treino-react',
-  'treino-react-com-redux',
-  'Laravel_CRUD',
-  'projetoModelo_Node-React',
-  'treinandoLaravel',
-  'poc-nest',
-  'POC-NEXT-DOG-SOCIAL-NETWORK',
-  'sentinela-sst',
-  'app-fullstack',
-]);
+const batchRepositories = new Set(['poc-nest']);
 const token = process.env.GITHUB_TOKEN?.trim();
 const headers: Record<string, string> = {
   Accept: 'application/vnd.github+json',
