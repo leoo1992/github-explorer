@@ -45,7 +45,8 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .brand > span:last-child { display: grid; gap: 1px; }
 .brand strong { font-size: 14px; }
 .brand small { color: var(--muted); font-size: 8px; letter-spacing: .07em; text-transform: uppercase; }
-.brand-mark { width: 34px; height: 34px; display: grid; place-items: center; color: white; border-radius: 11px; background: linear-gradient(135deg, var(--violet), var(--cyan)); box-shadow: 0 10px 25px rgba(103,87,230,.22); }
+.brand-mark { width: 34px; height: 34px; display: block; overflow: hidden; border-radius: 11px; box-shadow: 0 10px 25px rgba(103,87,230,.22); }
+.brand-mark img { display: block; width: 100%; height: 100%; }
 .github-link { min-height: 38px; padding: 0 12px; display: inline-flex; align-items: center; gap: 7px; color: var(--muted); border: 1px solid var(--border); border-radius: 11px; background: rgba(255,255,255,.02); font-size: 10px; font-weight: 700; }
 .github-link:hover { color: var(--text); border-color: var(--border-strong); }
 
@@ -57,12 +58,15 @@ h1 { margin-bottom: 16px; font-size: clamp(36px, 5vw, 66px); line-height: .98; l
 .hero-copy > p:last-child { max-width: 650px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
 
 .repo-form { min-width: 0; }
-.repo-input { padding: 7px; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 7px; border: 1px solid var(--border-strong); border-radius: 16px; background: rgba(14,19,32,.88); box-shadow: var(--shadow); }
-.repo-input > svg { margin-left: 8px; color: var(--muted); }
-.repo-input input { width: 100%; min-width: 0; height: 44px; color: var(--text); border: 0; outline: 0; background: transparent; font-size: 11px; }
-.repo-input input::placeholder { color: #59667b; }
+.repo-input { padding: 7px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 7px; border: 1px solid var(--border-strong); border-radius: 16px; background: rgba(14,19,32,.88); box-shadow: var(--shadow); }
+.repository-address { min-width: 0; height: 44px; display: grid; grid-template-columns: auto minmax(86px,.8fr) auto minmax(110px,1fr); align-items: center; overflow: hidden; border: 1px solid var(--border); border-radius: 11px; background: rgba(2,6,23,.38); }
+.repository-prefix { padding-left: 12px; color: var(--muted); font-size: 10px; white-space: nowrap; user-select: none; }
+.repository-slash { padding: 0 2px; color: var(--muted-2); font-size: 14px; font-weight: 800; user-select: none; }
+.repository-address input { width: 100%; min-width: 0; height: 42px; padding: 0 6px; color: var(--text); border: 0; outline: 0; background: transparent; font-size: 11px; }
+.repository-address input::placeholder { color: #59667b; }
+.repository-address input:focus { background: rgba(139,126,255,.05); }
 .repo-input button, .primary-action { min-height: 42px; padding: 0 16px; color: white; border: 0; border-radius: 11px; background: linear-gradient(135deg, var(--violet-2), var(--blue)); font-size: 10px; font-weight: 800; cursor: pointer; }
-.repo-input button:disabled { opacity: .65; cursor: wait; }
+.repo-input button:disabled { opacity: .42; cursor: not-allowed; filter: saturate(.65); }
 .examples { margin-top: 9px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .examples > span { color: var(--muted-2); font-size: 8px; }
 .examples button { padding: 4px 8px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; background: transparent; font-size: 8px; cursor: pointer; }
@@ -203,8 +207,11 @@ h1 { margin-bottom: 16px; font-size: clamp(36px, 5vw, 66px); line-height: .98; l
   .brand small { display: none; }
   .hero-content { padding-top: 34px; }
   h1 { font-size: clamp(34px, 12vw, 52px); }
-  .repo-input { grid-template-columns: auto minmax(0,1fr); }
-  .repo-input button { grid-column: 1 / -1; width: 100%; }
+  .repo-input { grid-template-columns: 1fr; }
+  .repo-input button { width: 100%; }
+  .repository-address { grid-template-columns: auto minmax(64px,.8fr) auto minmax(84px,1fr); }
+  .repository-prefix { padding-left: 8px; font-size: 8px; }
+  .repository-address input { padding: 0 4px; font-size: 10px; }
   .examples { align-items: flex-start; }
   .repo-header { grid-template-columns: 1fr; }
   .repo-actions { width: 100%; }
