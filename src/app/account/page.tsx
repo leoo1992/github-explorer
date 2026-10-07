@@ -31,7 +31,10 @@ export default async function AccountPage() {
         </div>
 
         {internalAccess ? (
-          <Link href="/dashboard" className={styles.cta}>Ir para o dashboard</Link>
+          <div className={styles.actions}>
+            <Link href="/admin" className={styles.cta}>Painel administrativo</Link>
+            <Link href="/dashboard" className={styles.secondaryCta}>Ir para o dashboard</Link>
+          </div>
         ) : access.subscription ? (
           <BillingPortalButton />
         ) : (
@@ -40,7 +43,7 @@ export default async function AccountPage() {
 
         <p className={styles.note}>
           {internalAccess
-            ? 'Conta interna com acesso administrativo.'
+            ? 'Conta interna com acesso administrativo e monitoramento operacional.'
             : 'Alterações de pagamento, cancelamento e método de cobrança são processadas no portal seguro do Stripe.'}
         </p>
       </section>
