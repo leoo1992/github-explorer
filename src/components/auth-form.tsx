@@ -159,7 +159,7 @@ export function AuthForm({ initialProviders = NO_PROVIDERS }: AuthFormProps) {
   const [message, setMessage] = useState(() => initialMessage(searchParams));
   const [providers, setProviders] = useState<AuthProviderAvailability>(initialProviders);
 
-  const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/pricing';
+  const next = searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/dashboard';
   const failedProvider = searchParams.get('error') === 'oauth' ? searchParams.get('provider') : null;
 
   useEffect(() => {
