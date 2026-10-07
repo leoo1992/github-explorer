@@ -186,14 +186,14 @@ export const STANDARD_QUALITY_PRESETS: StandardQualityPreset[] = [
   {
     id: 'typescript',
     label: 'TypeScript',
-    description: 'JavaScript tipado com strict mode, type checking e controles de qualidade do ecossistema Node.',
+    description: 'TypeScript com strict mode, type checking e controles de qualidade da linguagem.',
     languages: ['TypeScript'],
-    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code']),
+    ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'dead-code']),
   },
   {
     id: 'nextjs',
     label: 'Next.js',
-    description: 'Preset para aplicações Next.js com TypeScript/JavaScript, build, E2E, segurança e arquitetura.',
+    description: 'Preset para aplicações Next.js com TypeScript/JavaScript, build, segurança e arquitetura.',
     languages: ['JavaScript', 'TypeScript'],
     stacks: ['Next.js'],
     ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code']),
@@ -201,7 +201,7 @@ export const STANDARD_QUALITY_PRESETS: StandardQualityPreset[] = [
   {
     id: 'react',
     label: 'React',
-    description: 'Preset para frontends React com lint, type checking, testes, build e E2E.',
+    description: 'Preset para frontends React com lint, type checking, testes e build.',
     languages: ['JavaScript', 'TypeScript'],
     stacks: ['React'],
     ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code']),
@@ -209,7 +209,7 @@ export const STANDARD_QUALITY_PRESETS: StandardQualityPreset[] = [
   {
     id: 'vue',
     label: 'Vue.js',
-    description: 'Preset para frontends Vue com lint, type checking, testes, build e E2E.',
+    description: 'Preset para frontends Vue com lint, type checking, testes e build.',
     languages: ['JavaScript', 'TypeScript'],
     stacks: ['Vue'],
     ids: presetIds(BASE_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code']),
@@ -217,7 +217,7 @@ export const STANDARD_QUALITY_PRESETS: StandardQualityPreset[] = [
   {
     id: 'angular',
     label: 'Angular',
-    description: 'Preset Angular/TypeScript com strict mode, testes, build e E2E.',
+    description: 'Preset Angular/TypeScript com strict mode, testes e build.',
     languages: ['TypeScript'],
     stacks: ['Angular'],
     ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'typescript-strict', 'node-engine', 'dead-code']),
@@ -325,7 +325,7 @@ export const STANDARD_QUALITY_PRESETS: StandardQualityPreset[] = [
   {
     id: 'laravel',
     label: 'Laravel',
-    description: 'Preset Laravel com análise estática PHP, integração, E2E e segurança.',
+    description: 'Preset Laravel com análise estática PHP, integração e segurança.',
     languages: ['PHP'],
     stacks: ['Laravel'],
     ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'php-static-analysis', 'integration-tests']),
@@ -340,7 +340,7 @@ export const STANDARD_QUALITY_PRESETS: StandardQualityPreset[] = [
   {
     id: 'rails',
     label: 'Ruby on Rails',
-    description: 'Preset Rails com RuboCop, integração, E2E e segurança.',
+    description: 'Preset Rails com RuboCop, integração e segurança.',
     languages: ['Ruby'],
     stacks: ['Ruby on Rails'],
     ids: presetIds(EXTENDED_ENGINEERING_IDS, ['type-checking', 'ruby-lint', 'integration-tests']),
