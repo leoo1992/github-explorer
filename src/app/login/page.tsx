@@ -55,7 +55,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 <strong>2</strong>
                 <span>
                   <b>{signInMode ? 'Acesse seu plano' : 'Escolha o plano'}</b>
-                  <small>{signInMode ? 'Sua assinatura ou acesso administrativo é validado automaticamente.' : 'Pagamento seguro processado pelo Stripe.'}</small>
+                  <small>{signInMode ? 'Sua assinatura ou acesso administrativo é validado automaticamente.' : 'Pagamento seguro.'}</small>
                 </span>
               </div>
               <div><strong>3</strong><span><b>Analise</b><small>Repositórios públicos do GitHub.</small></span></div>
