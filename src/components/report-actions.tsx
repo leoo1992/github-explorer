@@ -1,6 +1,7 @@
 'use client';
 
 import { Download, FileJson, FileText, Share2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { calculateQualityScore } from '@/lib/quality-criteria';
 import type { RepositoryAnalysis } from '@/types/repository';
@@ -41,6 +42,7 @@ function analysisCsv(analysis: RepositoryAnalysis) {
 }
 
 export function ReportActions({ analysis }: { analysis: RepositoryAnalysis }) {
+  const router = useRouter();
   const [shareUrl, setShareUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -86,7 +88,10 @@ export function ReportActions({ analysis }: { analysis: RepositoryAnalysis }) {
     try {
       const url = await ensureShare();
       if (popup) popup.location.href = `${url}?print=1`;
-      else window.location.href = `${url}?print=1`;
+      else {
+        const destination = new URL(url);
+        router.push(`${destination.pathname}?print=1`);
+      }
       setMessage('Relatório aberto para impressão/salvamento em PDF.');
     } catch (error) {
       popup?.close();
