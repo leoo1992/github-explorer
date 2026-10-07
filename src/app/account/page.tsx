@@ -16,18 +16,47 @@ export default async function AccountPage() {
   if (!access.user) redirect('/login?mode=login&next=/account');
 
   const internalAccess = access.admin;
+  const status = internalAccess
+    ? 'Administrador'
+    : access.paid
+      ? access.subscription?.status ?? 'Ativo'
+      : access.freeGrantActive
+        ? 'Acesso gratuito'
+        : access.freeAnalysisAvailable
+          ? '1 análise gratuita disponível'
+          : 'Sem acesso ativo';
+
+  const plan = internalAccess
+    ? 'Interno'
+    : access.paid
+      ? 'RepoScope Pro'
+      : access.freeGrantActive
+        ? '30 dias grátis'
+        : access.freeAnalysisAvailable
+          ? 'Cortesia inicial'
+          : 'RepoScope Pro';
+
+  const period = internalAccess
+    ? 'Permanente'
+    : access.paid
+      ? formatDate(access.subscription?.current_period_end ?? null)
+      : access.freeGrantActive
+        ? `${access.freeGrantDaysRemaining} dias restantes · até ${formatDate(access.freeGrantUntil)}`
+        : access.freeAnalysisAvailable
+          ? 'Disponível até concluir 1 análise válida'
+          : 'Encerrado';
 
   return (
     <main className={styles.page}>
       <section className={styles.card}>
         <Link href="/dashboard" className={styles.brand}>RepoScope</Link>
         <p className={styles.eyebrow}>CONTA E ACESSO</p>
-        <h1>{internalAccess ? 'Acesso administrativo ao RepoScope.' : 'Gerencie seu acesso ao RepoScope Pro.'}</h1>
+        <h1>{internalAccess ? 'Acesso administrativo ao RepoScope.' : 'Gerencie seu acesso ao RepoScope.'}</h1>
         <div className={styles.details}>
           <div><span>Conta</span><strong>{access.user.email ?? 'Usuário autenticado'}</strong></div>
-          <div><span>Status</span><strong>{internalAccess ? 'Administrador' : access.subscription?.status ?? 'Sem assinatura'}</strong></div>
-          <div><span>Plano</span><strong>{internalAccess ? 'Interno' : 'RepoScope Pro'}</strong></div>
-          <div><span>Período atual</span><strong>{internalAccess ? 'Permanente' : formatDate(access.subscription?.current_period_end ?? null)}</strong></div>
+          <div><span>Status</span><strong>{status}</strong></div>
+          <div><span>Plano</span><strong>{plan}</strong></div>
+          <div><span>Período atual</span><strong>{period}</strong></div>
         </div>
 
         {internalAccess ? (
@@ -35,16 +64,28 @@ export default async function AccountPage() {
             <Link href="/admin" className={styles.cta}>Painel administrativo</Link>
             <Link href="/dashboard" className={styles.secondaryCta}>Ir para o dashboard</Link>
           </div>
-        ) : access.subscription ? (
-          <BillingPortalButton />
+        ) : access.paid && access.subscription ? (
+          <div className={styles.actions}>
+            <Link href="/dashboard" className={styles.cta}>Ir para o dashboard</Link>
+            <BillingPortalButton />
+          </div>
+        ) : access.canAnalyze ? (
+          <div className={styles.actions}>
+            <Link href="/dashboard" className={styles.cta}>Ir para o dashboard</Link>
+            <Link href="/pricing" className={styles.secondaryCta}>Ver plano</Link>
+          </div>
         ) : (
-          <Link href="/pricing" className={styles.cta}>Assinar RepoScope Pro</Link>
+          <Link href="/pricing" className={styles.cta}>Ativar RepoScope Pro</Link>
         )}
 
         <p className={styles.note}>
           {internalAccess
             ? 'Conta interna com acesso administrativo e monitoramento operacional.'
-            : 'Alterações de pagamento, cancelamento e método de cobrança são processadas em um portal de pagamento seguro.'}
+            : access.freeGrantActive
+              ? `Seu acesso gratuito termina em ${access.freeGrantDaysRemaining} dias.`
+              : access.freeAnalysisAvailable
+                ? 'Sua conta possui 1 análise válida gratuita antes da ativação do plano.'
+                : 'Alterações de pagamento, cancelamento e método de cobrança são processadas em um portal de pagamento seguro.'}
         </p>
       </section>
     </main>
