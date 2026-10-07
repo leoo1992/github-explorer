@@ -204,7 +204,7 @@ function CriteriaSelector({ selected, setSelected, disabled }: {
   );
 }
 
-export function ExplorerPaid() {
+export function ExplorerPaid({ admin = false }: { admin?: boolean }) {
   const router = useRouter();
   const [owner, setOwner] = useState('');
   const [repository, setRepository] = useState('');
@@ -325,7 +325,7 @@ export function ExplorerPaid() {
       <section className="hero">
         <div className="topbar shell">
           <Link className="brand" href="/"><BrandIcon className="brand-mark" /><span><strong>RepoScope</strong><small>Engineering Intelligence</small></span></Link>
-          <div className="repo-actions"><Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
+          <div className="repo-actions">{admin ? <Link className="secondary-action" href="/admin">Admin</Link> : null}<Link className="secondary-action" href="/account">Conta</Link><form action="/auth/signout" method="post"><button className="secondary-action" type="submit">Sair</button></form></div>
         </div>
         <div className="hero-content shell">
           <div className="hero-copy"><p className="eyebrow">ASSINATURA ATIVA</p><h1>Avalie repositórios públicos com evidências técnicas.</h1><p>Informe um repositório público do GitHub e escolha quais sinais entram no cálculo. Etapas temporariamente indisponíveis são retomadas automaticamente.</p></div>

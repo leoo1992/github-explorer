@@ -73,7 +73,8 @@
 }
 
 .card button,
-.cta {
+.cta,
+.secondaryCta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -114,4 +115,22 @@
   .details {
     grid-template-columns: 1fr;
   }
+}
+
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.secondaryCta {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  background: transparent;
+  color: #dce5f5;
+  font-weight: 900;
+  text-decoration: none;
 }

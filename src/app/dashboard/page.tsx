@@ -10,5 +10,5 @@ export default async function DashboardPage() {
   if (!access.user) redirect('/login?mode=login&next=/dashboard');
   if (!access.paid) redirect('/pricing');
 
-  return <Explorer />;
+  return <Explorer admin={access.admin} />;
 }
