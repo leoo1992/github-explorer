@@ -37,8 +37,10 @@ export async function GET(request: NextRequest) {
   }
 
   const repo = request.nextUrl.searchParams.get('repo')?.trim();
+  const mode = request.nextUrl.searchParams.get('mode') === 'auto' ? 'auto' : 'selected';
+  const profileLabel = request.nextUrl.searchParams.get('profile')?.trim() || undefined;
   const rawCriteria = request.nextUrl.searchParams.get('criteria');
-  const criteriaIds = rawCriteria
+  const criteriaIds = mode === 'selected' && rawCriteria
     ? sanitizeQualityCriteriaIds(rawCriteria.split(',').map((value) => value.trim()).filter(Boolean))
     : undefined;
   const usageBase = {
@@ -61,10 +63,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const analysis = await analyzeRepository(repo, { criteriaIds });
+    const analysis = await analyzeRepository(repo, { criteriaIds, mode, profileLabel });
 
     await recordRepositoryUsage({
       ...usageBase,
+      criteriaCount: analysis.appliedCriteriaIds.length,
       state: 'complete',
       durationMs: Date.now() - startedAt,
     });
