@@ -431,6 +431,12 @@ export function ExplorerPaid({
           return;
         }
         const retry = 'retryAfterMs' in body && body.retryAfterMs ? body.retryAfterMs : waitMs;
+        if (retry > 120_000) {
+          setAnalysisState('empty');
+          setStatusMessage('Limite da API do GitHub atingido. Aguarde aproximadamente ' + Math.ceil(retry / 60_000) + ' minuto(s) e inicie uma nova análise.');
+          setLoading(false);
+          return;
+        }
         setAnalysisState('waiting');
         setStatusMessage('GitHub temporariamente indisponível · tentativa ' + attempts + ' de ' + maxAttempts);
         await delay(Math.min(Math.max(retry, 2_000), 60 * 60 * 1_000), controller.signal);
