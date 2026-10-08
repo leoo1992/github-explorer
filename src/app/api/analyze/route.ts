@@ -6,7 +6,7 @@ import {
   releaseFreeAnalysisClaim,
 } from '@/lib/entitlements';
 import { analyzeRepository } from '@/lib/github-analyzer';
-import { cacheContext, claimAnalysis, currentCommit, readAnalysisCache, releaseAnalysis, saveAnalysis, type CacheContext } from '@/lib/analysis-queue';
+import { applyGlobalRatePause, globalRatePauseSeconds, cacheContext, claimAnalysis, currentCommit, readAnalysisCache, releaseAnalysis, saveAnalysis, type CacheContext } from '@/lib/analysis-queue';
 import { calculateQualityScore, sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
 import { recordRepositoryUsage } from '@/lib/usage';
 
@@ -65,6 +65,8 @@ export async function GET(request: NextRequest) {
 
   let cache: CacheContext | null = null;
   try {
+    const pause = await globalRatePauseSeconds();
+    if (pause > 0) return Response.json({ state: 'waiting', code: 'GITHUB_RATE_LIMIT', retryAfterMs: pause * 1000 }, { status: 202, headers: { 'cache-control': 'private, no-store', 'retry-after': String(pause) } });
     const head = await currentCommit(repo);
     cache = cacheContext(head.repo, head.sha, mode, criteriaIds ?? []);
     const cached = await readAnalysisCache(cache);
@@ -111,6 +113,7 @@ export async function GET(request: NextRequest) {
 
     const message = error instanceof Error ? error.message : 'unknown';
     if (cache) await releaseAnalysis(cache, message);
+    else await applyGlobalRatePause(message);
     console.error('[repository-analysis] request deferred', { repo, message });
 
     const notFound = /não encontrado|not found/i.test(message);
