@@ -74,7 +74,7 @@ export const QUALITY_CRITERIA: QualityCriterion[] = [
   { id: 'codeql', label: 'CodeQL configurado', group: 'Segurança', description: 'CodeQL está configurado em workflow para análise estática quando a linguagem é suportada pelo CodeQL.', languages: ['JavaScript', 'TypeScript', 'Python', 'Java', 'Kotlin', 'C#', 'Go', 'Ruby', 'Swift', 'C', 'C++'] },
   { id: 'dependabot', label: 'Dependabot configurado', group: 'Segurança', description: 'Dependabot está configurado para atualizar dependências.', languages: GLOBAL },
   { id: 'actions-permissions', label: 'Permissões de Actions explícitas', group: 'Segurança', description: 'Workflows declaram permissions e não usam write-all.', languages: GLOBAL },
-  { id: 'signed-commits', label: 'Commits assinados', group: 'Segurança', description: 'Os commits recentes possuem assinatura verificada pelo GitHub.', languages: GLOBAL },
+  { id: 'signed-commits', label: 'Commits assinados', group: 'Segurança', description: 'O commit mais recente da branch padrão possui assinatura verificada pelo GitHub.', languages: GLOBAL },
   { id: 'dependency-vulnerabilities', label: 'Sem advisories/vulnerabilidades abertas', group: 'Segurança', description: 'Não há alertas Dependabot abertos para vulnerabilidades conhecidas quando a API permite a consulta.', languages: GLOBAL },
   { id: 'secret-indicators', label: 'Sem indicadores de secrets', group: 'Segurança', description: 'Não foram detectados padrões comuns de chaves, tokens ou segredos em arquivos de configuração analisados.', languages: GLOBAL },
   { id: 'contributing', label: 'CONTRIBUTING', group: 'Documentação', description: 'Guia de contribuição presente.', languages: GLOBAL },
