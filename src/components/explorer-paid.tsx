@@ -11,6 +11,7 @@ import { AppNavigation } from '@/components/app-navigation';
 import { CorrectionPlanView } from '@/components/correction-plan-view';
 import { QualityEvidencePanel } from '@/components/quality-evidence-panel';
 import { ReportActions } from '@/components/report-actions';
+import { OwnerBatchAnalysis } from '@/components/owner-batch-analysis';
 import { SecurityView } from '@/components/security-view';
 import {
   DEFAULT_QUALITY_CRITERIA_IDS,
@@ -610,6 +611,7 @@ export function ExplorerPaid({
                 ))}
               </div>
             </form>
+            <OwnerBatchAnalysis owner={owner} enabled={admin || paid || freeGrantDaysRemaining > 0} />
           </section>
         ) : null}
 
