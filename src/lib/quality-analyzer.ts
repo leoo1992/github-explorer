@@ -1,3 +1,4 @@
+import { githubInstallationHeaders } from '@/lib/github-app';
 import { QUALITY_CRITERIA } from '@/lib/quality-criteria';
 import type { DependencyItem, QualityEvidence, QualitySignal, SecuritySummary, TreeEntry } from '@/types/repository';
 
@@ -71,17 +72,6 @@ const LOCKFILES = new Set([
   'cargo.lock', 'go.sum', 'composer.lock', 'gemfile.lock', 'gradle.lockfile',
   'packages.lock.json', 'package.resolved', 'pubspec.lock', 'podfile.lock',
 ]);
-
-function buildHeaders() {
-  const headers: HeadersInit = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'github-architecture-explorer',
-  };
-  const token = process.env.GITHUB_TOKEN?.trim();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
-}
 
 async function githubFetch<T>(url: string, headers: HeadersInit) {
   const response = await fetch(url, { headers, next: { revalidate: 300 } });
@@ -312,7 +302,7 @@ export async function analyzeQualitySignals(args: {
   repositoryLicense: { spdx_id?: string | null; name?: string | null } | null;
 }): Promise<{ signals: QualitySignal[]; security: SecuritySummary; remaining: number[] }> {
   const { owner, repo, defaultBranch, tree, dependencies, repositoryLicense } = args;
-  const headers = buildHeaders();
+  const headers = await githubInstallationHeaders(owner, repo);
   const base = `https://api.github.com/repos/${owner}/${repo}`;
   const paths = tree.filter((entry) => entry.type === 'blob').map((entry) => entry.path);
   const lowerPaths = paths.map((path) => path.toLowerCase());

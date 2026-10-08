@@ -1,23 +1,20 @@
+import { githubInstallationHeaders } from '@/lib/github-app';
 import { createHash } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { RepositoryAnalysis } from '@/types/repository';
 
 const db = () => createAdminClient();
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
-const GH_HEADERS = () => ({
-  Accept: 'application/vnd.github+json',
-  'User-Agent': 'RepoScope-cache',
-  ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
-});
-
 export type CacheContext = { repo: string; sha: string; key: string; job: string; profile: string };
 
 export async function currentCommit(repoInput: string): Promise<{ repo: string; sha: string }> {
   const match = repoInput.match(/(?:github\.com\/)?([\w.-]+)\/([\w.-]+)\/?$/i);
   if (!match) throw new Error('Informe owner/repository ou a URL completa de um repositório público do GitHub.');
   const repo = `${match[1]}/${match[2]}`.toLowerCase();
+  const [owner, name] = repo.split('/');
+  const headers = await githubInstallationHeaders(owner, name);
   const response = await fetch(`https://api.github.com/repos/${repo}`, {
-    headers: GH_HEADERS(), next: { revalidate: 120 }, signal: AbortSignal.timeout(15000),
+    headers, next: { revalidate: 120 }, signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) {
     if (response.status === 401) throw new Error('GITHUB_AUTH_INVALID: HTTP 401');
@@ -31,7 +28,7 @@ export async function currentCommit(repoInput: string): Promise<{ repo: string; 
   }
   const metadata = await response.json() as { default_branch: string };
   const headResponse = await fetch(`https://api.github.com/repos/${repo}/commits/${encodeURIComponent(metadata.default_branch)}`, {
-    headers: GH_HEADERS(), next: { revalidate: 120 }, signal: AbortSignal.timeout(15000),
+    headers, next: { revalidate: 120 }, signal: AbortSignal.timeout(15000),
   });
   if (!headResponse.ok) {
     if ([403,429].includes(headResponse.status)) {

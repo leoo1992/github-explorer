@@ -1,3 +1,4 @@
+import { githubInstallationHeaders } from '@/lib/github-app';
 import { analyzeQualitySignals } from '@/lib/quality-analyzer';
 import {
   automaticQualityProfile,
@@ -100,17 +101,6 @@ function parseDirectRepoInput(input: string) {
   if (!owner || !repo) return null;
   if (!/^[A-Za-z0-9_.-]+$/.test(owner) || !/^[A-Za-z0-9_.-]+$/.test(repo)) return null;
   return { owner, repo };
-}
-
-function buildHeaders() {
-  const headers: HeadersInit = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'github-architecture-explorer',
-  };
-  const token = process.env.GITHUB_TOKEN?.trim();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
 }
 
 async function githubFetch<T>(url: string, headers: HeadersInit): Promise<{ data: T; remaining: number | null }> {
@@ -377,9 +367,9 @@ export async function analyzeRepository(
     profileLabel?: string;
   } = {},
 ): Promise<RepositoryAnalysis> {
-  const headers = buildHeaders();
   const resolved = resolveRepoInput(input);
   const { owner, repo } = resolved;
+  const headers = await githubInstallationHeaders(owner, repo);
   const base = `https://api.github.com/repos/${owner}/${repo}`;
 
   const repositoryResult = await githubFetch<GitHubRepository>(base, headers);
