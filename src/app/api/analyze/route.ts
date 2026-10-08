@@ -6,6 +6,7 @@ import {
   releaseFreeAnalysisClaim,
 } from '@/lib/entitlements';
 import { analyzeRepository } from '@/lib/github-analyzer';
+import { cacheContext, claimAnalysis, currentCommit, readAnalysisCache, releaseAnalysis, saveAnalysis, type CacheContext } from '@/lib/analysis-queue';
 import { calculateQualityScore, sanitizeQualityCriteriaIds } from '@/lib/quality-criteria';
 import { recordRepositoryUsage } from '@/lib/usage';
 
@@ -62,8 +63,26 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  let cache: CacheContext | null = null;
   try {
+    const head = await currentCommit(repo);
+    cache = cacheContext(head.repo, head.sha, mode, criteriaIds ?? []);
+    const cached = await readAnalysisCache(cache);
+    if (cached) {
+      if (usingFreeAnalysis) await completeFreeAnalysis(userId);
+      return Response.json(cached, { headers: { 'cache-control': 'private, no-store', 'x-analysis-cache': 'hit' } });
+    }
+    const claim = await claimAnalysis(cache);
+    if (claim !== 'claimed') {
+      return Response.json({
+        state: 'waiting',
+        code: claim === 'rate_limited' ? 'GITHUB_RATE_LIMIT' : 'ANALYSIS_QUEUED',
+        retryAfterMs: claim === 'rate_limited' ? 60000 : 8000,
+        error: claim === 'rate_limited' ? 'Cota GitHub em recuperação.' : 'Análise aguardando uma vaga na fila compartilhada.',
+      }, { status: 202, headers: { 'cache-control': 'private, no-store', 'retry-after': claim === 'rate_limited' ? '60' : '8' } });
+    }
     const analysis = await analyzeRepository(repo, { criteriaIds, mode, profileLabel });
+    await saveAnalysis(cache, analysis);
 
     const quality = calculateQualityScore(
       analysis.qualitySignals,
@@ -91,6 +110,7 @@ export async function GET(request: NextRequest) {
     if (usingFreeAnalysis) await releaseFreeAnalysisClaim(userId);
 
     const message = error instanceof Error ? error.message : 'unknown';
+    if (cache) await releaseAnalysis(cache, message);
     console.error('[repository-analysis] request deferred', { repo, message });
 
     const notFound = /não encontrado|not found/i.test(message);
