@@ -652,7 +652,7 @@ export function ExplorerPaid({
             {!analysis && !loading && analysisState === 'empty' ? (
               <div className="empty-landing dashboard-empty">
                 <h2>{statusMessage}</h2>
-                <p>Revise owner e repositório e tente novamente.</p>
+                <p>{/limite da api|github|comunicação|indisponível|token/i.test(statusMessage) ? 'Aguarde a recuperação da API do GitHub e inicie outra análise. Não é necessário alterar o repositório.' : 'Revise owner e repositório e tente novamente.'}</p>
               </div>
             ) : null}
 
