@@ -95,6 +95,45 @@ export async function GET(request: NextRequest) {
 
     const notFound = /não encontrado|not found/i.test(message);
     const invalidInput = /owner\/repository|URL completa/i.test(message);
+    const githubAuthInvalid = message.startsWith('GITHUB_AUTH_INVALID:');
+    const rateLimitMatch = message.match(/^GITHUB_RATE_LIMIT: aguardar (\d+)s/);
+
+    if (githubAuthInvalid) {
+      await recordRepositoryUsage({
+        ...usageBase,
+        state: 'waiting',
+        durationMs: Date.now() - startedAt,
+      });
+      return Response.json(
+        {
+          state: 'error',
+          code: 'GITHUB_AUTH_INVALID',
+          error: 'A integração com o GitHub precisa de um token válido. Verifique GITHUB_TOKEN na Vercel.',
+        },
+        { status: 503, headers: { 'cache-control': 'private, no-store' } },
+      );
+    }
+
+    if (rateLimitMatch) {
+      const seconds = Math.max(60, Math.min(3600, Number(rateLimitMatch[1])));
+      await recordRepositoryUsage({
+        ...usageBase,
+        state: 'waiting',
+        durationMs: Date.now() - startedAt,
+      });
+      return Response.json(
+        {
+          state: 'waiting',
+          code: 'GITHUB_RATE_LIMIT',
+          error: 'Limite temporário da API do GitHub atingido. A análise será retomada após a espera.',
+          retryAfterMs: seconds * 1000,
+        },
+        {
+          status: 202,
+          headers: { 'cache-control': 'private, no-store', 'retry-after': String(seconds) },
+        },
+      );
+    }
 
     if (invalidInput) {
       await recordRepositoryUsage({
