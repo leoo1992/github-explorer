@@ -115,7 +115,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (usingFreeAnalysis) await releaseFreeAnalysisClaim(userId);
 
-    const message = error instanceof Error ? error.message : 'unknown';
+    const originalMessage = error instanceof Error ? error.message : 'unknown';
+    const message = /^GitHub respondeu com HTTP (403|429)\./.test(originalMessage)
+      ? 'GITHUB_RATE_LIMIT: aguardar 60s (qualidade)'
+      : originalMessage;
     if (cache) await releaseAnalysis(cache, message);
     else await applyGlobalRatePause(message);
     console.error('[repository-analysis] request deferred', { repo, message });
