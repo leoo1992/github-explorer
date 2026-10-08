@@ -55,7 +55,16 @@ async function installationToken(id: number) {
 export async function githubInstallationHeaders(owner: string, repo: string): Promise<HeadersInit> {
   const id = await installationForRepository(owner, repo);
   const token = await installationToken(id);
-  return { ...apiHeaders, Authorization: `Bearer ${token}` };
+  // A análise privada requer vínculo explícito entre a instalação e o usuário,
+  // que não está habilitado nesta migração. Falha fechada até essa autorização existir.
+  const headers = { ...apiHeaders, Authorization: `Bearer ${token}` };
+  const metadata = await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+    headers, next: { revalidate: 120 }, signal: AbortSignal.timeout(15000),
+  });
+  if (!metadata.ok) throw new Error(`GITHUB_APP_REPOSITORY_ACCESS: HTTP ${metadata.status}`);
+  const details = await metadata.json() as { private: boolean };
+  if (details.private) throw new Error('GITHUB_PRIVATE_REPO_UNAUTHORIZED: Repositórios privados exigem autorização de acesso vinculada ao usuário.');
+  return headers;
 }
 export function githubAppIsConfigured() {
   return Boolean(process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY);
