@@ -48,7 +48,7 @@ export async function currentCommit(repoInput: string): Promise<{ repo: string; 
 export function cacheContext(repo: string, sha: string, mode: string, criteria: string[]): CacheContext {
   const profile = digest(JSON.stringify({ mode, criteria: [...criteria].sort() }));
   const key = digest(`${repo}:${sha}:${profile}:v2`);
-  return { repo, sha, profile, key, job: digest(`${repo}:${profile}`) };
+  return { repo, sha, profile, key, job: digest(`${repo}:${sha}:${profile}`) };
 }
 
 export async function readAnalysisCache(ctx: CacheContext): Promise<RepositoryAnalysis | null> {
@@ -98,4 +98,16 @@ export async function getPartialResults(repos: string[]) {
     .in('repository', repos.slice(0,100).map(x=>x.toLowerCase()));
   if (error) throw new Error(`Fila indisponível: ${error.message}`);
   return data ?? [];
+}
+
+export async function globalRatePauseSeconds() {
+  const { data, error } = await db().from('analysis_control').select('pause_until').eq('id', 1).single();
+  if (error) throw new Error(`Controle de cota indisponível: ${error.message}`);
+  return Math.max(0, Math.ceil((new Date(data.pause_until).getTime() - Date.now()) / 1000));
+}
+export async function applyGlobalRatePause(message: string) {
+  const seconds = Number(message.match(/^GITHUB_RATE_LIMIT: aguardar (\\d+)s/)?.[1]);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    await db().rpc('pause_github_analysis', { p_seconds: seconds });
+  }
 }
