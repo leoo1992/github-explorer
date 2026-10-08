@@ -11,7 +11,6 @@ import { AppNavigation } from '@/components/app-navigation';
 import { CorrectionPlanView } from '@/components/correction-plan-view';
 import { QualityEvidencePanel } from '@/components/quality-evidence-panel';
 import { ReportActions } from '@/components/report-actions';
-import { OwnerBatchAnalysis } from '@/components/owner-batch-analysis';
 import { SecurityView } from '@/components/security-view';
 import {
   DEFAULT_QUALITY_CRITERIA_IDS,
@@ -37,8 +36,8 @@ type AnalysisControl = {
 const repositoryInput = {
   hint: 'Arquitetura, stack, dependências e sinais de qualidade.',
   examples: [
-    { owner: 'leoo1992', repository: 'github-explorer' },
-    { owner: 'vercel', repository: 'next.js' },
+    { owner: 'facebook', repository: 'react' },
+    { owner: 'microsoft', repository: 'TypeScript' },
   ],
 } as const;
 
@@ -611,7 +610,6 @@ export function ExplorerPaid({
                 ))}
               </div>
             </form>
-            <OwnerBatchAnalysis owner={owner} enabled={admin || paid || freeGrantDaysRemaining > 0} />
           </section>
         ) : null}
 
