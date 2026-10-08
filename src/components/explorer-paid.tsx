@@ -648,7 +648,7 @@ export function ExplorerPaid({
                   <div className="skeleton-grid">
                     {Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}
                   </div>
-                )>
+                )}
               </div>
             ) : null}
 
