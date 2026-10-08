@@ -125,8 +125,20 @@ async function githubFetch<T>(url: string, headers: HeadersInit): Promise<{ data
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('GITHUB_AUTH_INVALID: Token do GitHub rejeitado (HTTP 401).');
+    }
     if (response.status === 403 || response.status === 429) {
-      throw new Error('Fonte pública temporariamente indisponível.');
+      const remaining = response.headers.get('x-ratelimit-remaining');
+      const reset = Number(response.headers.get('x-ratelimit-reset'));
+      const retryAfter = Number(response.headers.get('retry-after'));
+      const untilReset = Number.isFinite(reset) && reset > 0
+        ? Math.max(60, Math.ceil(reset - Date.now() / 1000))
+        : 60;
+      const seconds = Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.ceil(retryAfter)
+        : remaining === '0' ? untilReset : 60;
+      throw new Error(`GITHUB_RATE_LIMIT: aguardar ${Math.min(seconds, 3600)}s (HTTP ${response.status}).`);
     }
     throw new Error(`GitHub respondeu com HTTP ${response.status}.`);
   }
