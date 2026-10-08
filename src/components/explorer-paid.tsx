@@ -367,6 +367,8 @@ export function ExplorerPaid({
     setAnalysisState('running');
     setStatusMessage('Coletando evidências públicas do repositório');
     let waitMs = 2_000;
+    let attempts = 0;
+    const maxAttempts = 4;
 
     while (!controller.signal.aborted) {
       try {
@@ -413,15 +415,37 @@ export function ExplorerPaid({
           return;
         }
 
+        if (!response.ok || ('state' in body && body.state !== 'waiting')) {
+          setAnalysisState('empty');
+          setStatusMessage('error' in body && typeof body.error === 'string'
+            ? body.error : 'Não foi possível concluir a análise. Tente novamente.');
+          setLoading(false);
+          return;
+        }
+
+        attempts += 1;
+        if (attempts >= maxAttempts) {
+          setAnalysisState('empty');
+          setStatusMessage('A API do GitHub continua indisponível. A análise foi interrompida após 4 tentativas; tente novamente mais tarde.');
+          setLoading(false);
+          return;
+        }
         const retry = 'retryAfterMs' in body && body.retryAfterMs ? body.retryAfterMs : waitMs;
         setAnalysisState('waiting');
-        setStatusMessage('Aguardando disponibilidade dos dados · retomada automática');
+        setStatusMessage('GitHub temporariamente indisponível · tentativa ' + attempts + ' de ' + maxAttempts);
         await delay(Math.min(Math.max(retry, 2_000), 60 * 60 * 1_000), controller.signal);
         waitMs = Math.min(waitMs * 2, 30_000);
       } catch {
         if (controller.signal.aborted) return;
+        attempts += 1;
+        if (attempts >= maxAttempts) {
+          setAnalysisState('empty');
+          setStatusMessage('Falha de comunicação após 4 tentativas. Tente novamente.');
+          setLoading(false);
+          return;
+        }
         setAnalysisState('waiting');
-        setStatusMessage('Sincronizando novamente com a fonte pública · retomada automática');
+        setStatusMessage('Falha de comunicação · tentativa ' + attempts + ' de ' + maxAttempts);
         await delay(waitMs, controller.signal);
         waitMs = Math.min(waitMs * 2, 30_000);
       }
