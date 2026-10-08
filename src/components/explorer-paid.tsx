@@ -636,9 +636,17 @@ export function ExplorerPaid({
                   </div>
                 </div>
                 <div className="indeterminate-progress"><span /></div>
-                <div className="skeleton-grid">
-                  {Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}
-                </div>
+                {recentAnalyses.length > 0 ? (
+                  <section className="card panel" aria-label="Resultados anteriores disponíveis">
+                    <h2>Resultados já disponíveis</h2>
+                    <p>Estas análises concluídas permanecem acessíveis enquanto a nova avaliação aguarda.</p>
+                    <RecentAnalysesTable items={recentAnalyses} loading={false} onRun={runRecent} />
+                  </section>
+                ) : (
+                  <div className="skeleton-grid">
+                    {Array.from({ length: 4 }, (_, index) => <div className="skeleton" key={index} />)}
+                  </div>
+                )>
               </div>
             ) : null}
 
