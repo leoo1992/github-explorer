@@ -103,7 +103,8 @@ export async function getPartialResults(repos: string[]) {
 export async function globalRatePauseSeconds() {
   const { data, error } = await db().from('analysis_control').select('pause_until').eq('id', 1).single();
   if (error) throw new Error(`Controle de cota indisponível: ${error.message}`);
-  return Math.max(0, Math.ceil((new Date(data.pause_until).getTime() - Date.now()) / 1000));
+  const resetAt = Date.parse(String(data.pause_until));
+  return Number.isFinite(resetAt) ? Math.max(0, Math.ceil((resetAt - Date.now()) / 1000)) : 0;
 }
 export async function applyGlobalRatePause(message: string) {
   const seconds = Number(message.match(/^GITHUB_RATE_LIMIT: aguardar (\d+)s/)?.[1]);
