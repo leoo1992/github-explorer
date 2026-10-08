@@ -66,7 +66,10 @@ export async function GET(request: NextRequest) {
   let cache: CacheContext | null = null;
   try {
     const pause = await globalRatePauseSeconds();
-    if (pause > 0) return Response.json({ state: 'waiting', code: 'GITHUB_RATE_LIMIT', retryAfterMs: pause * 1000 }, { status: 202, headers: { 'cache-control': 'private, no-store', 'retry-after': String(pause) } });
+    if (pause > 0) {
+      if (usingFreeAnalysis) await releaseFreeAnalysisClaim(userId);
+      return Response.json({ state: 'waiting', code: 'GITHUB_RATE_LIMIT', retryAfterMs: pause * 1000 }, { status: 202, headers: { 'cache-control': 'private, no-store', 'retry-after': String(pause) } });
+    }
     const head = await currentCommit(repo);
     cache = cacheContext(head.repo, head.sha, mode, criteriaIds ?? []);
     const cached = await readAnalysisCache(cache);
@@ -76,6 +79,7 @@ export async function GET(request: NextRequest) {
     }
     const claim = await claimAnalysis(cache);
     if (claim !== 'claimed') {
+      if (usingFreeAnalysis) await releaseFreeAnalysisClaim(userId);
       return Response.json({
         state: 'waiting',
         code: claim === 'rate_limited' ? 'GITHUB_RATE_LIMIT' : 'ANALYSIS_QUEUED',
