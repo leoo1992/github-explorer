@@ -106,7 +106,7 @@ export async function globalRatePauseSeconds() {
   return Math.max(0, Math.ceil((new Date(data.pause_until).getTime() - Date.now()) / 1000));
 }
 export async function applyGlobalRatePause(message: string) {
-  const seconds = Number(message.match(/^GITHUB_RATE_LIMIT: aguardar (\\d+)s/)?.[1]);
+  const seconds = Number(message.match(/^GITHUB_RATE_LIMIT: aguardar (\d+)s/)?.[1]);
   if (Number.isFinite(seconds) && seconds > 0) {
     await db().rpc('pause_github_analysis', { p_seconds: seconds });
   }
